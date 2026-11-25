@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <div aria-hidden className="awning" />
-      <header className="border-b">
+      <header className="relative border-b">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
           <Wordmark />
           {/* Bagian yang bergantung pada session dirender per request; sisanya ikut static shell. */}
@@ -37,7 +37,7 @@ async function HeaderSession() {
       <div className="flex-1">
         <NavLinks items={navFor(user.role)} />
       </div>
-      <div className="hidden text-right leading-tight md:block">
+      <div className="hidden text-right leading-tight lg:block">
         <p className="text-sm font-semibold">{user.name}</p>
         <p className="text-xs text-muted-foreground">
           {ROLE_LABEL[user.role]} · {place}
