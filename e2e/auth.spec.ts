@@ -1,13 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { login, PASSWORD } from "./helpers";
 
-const PASSWORD = "demo12345";
 
-async function login(page: Page, email: string, password = PASSWORD) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Kata sandi").fill(password);
-  await page.getByRole("button", { name: "Masuk", exact: true }).click();
-}
 
 test.describe("login per role", () => {
   test("pemilik masuk ke dashboard semua cabang", async ({ page }) => {
