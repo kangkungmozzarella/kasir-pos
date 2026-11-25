@@ -1,0 +1,321 @@
+// =============================================================
+//  Kasir POS — Prisma schema (multi-cabang)
+//  Stack: Next.js (App Router) + Prisma + PostgreSQL
+//  Semua nominal uang disimpan dalam Rupiah (Int, tanpa desimal).
+// =============================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7: URL koneksi diatur di prisma.config.ts, bukan di sini
+}
+
+// -------------------------------------------------------------
+//  Enum
+// -------------------------------------------------------------
+
+enum Role {
+  OWNER    // lihat semua cabang, laporan gabungan
+  ADMIN    // kelola produk, stok, user di cabangnya
+  CASHIER  // hanya layar kasir & shift sendiri
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum SaleStatus {
+  PENDING_PAYMENT // menunggu QRIS / kartu
+  COMPLETED
+  VOIDED
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum StockMovementType {
+  PURCHASE      // barang masuk dari supplier
+  SALE          // terjual
+  VOID_RETURN   // stok kembali karena transaksi dibatalkan
+  ADJUSTMENT    // stock opname / koreksi
+  TRANSFER_OUT  // kirim ke cabang lain
+  TRANSFER_IN   // terima dari cabang lain
+}
+
+enum TransferStatus {
+  DRAFT
+  SENT
+  RECEIVED
+  CANCELLED
+}
+
+// -------------------------------------------------------------
+//  Cabang & pengguna
+// -------------------------------------------------------------
+
+model Branch {
+  id            String   @id @default(cuid())
+  code          String   @unique // contoh: "MDN01" — dipakai di nomor struk
+  name          String
+  address       String?
+  phone         String?
+  taxRate       Int      @default(0) // persen, contoh 11 = PPN 11%
+  receiptFooter String?  @default("Terima kasih telah berbelanja!")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users          User[]
+  stocks         BranchStock[]
+  stockMovements StockMovement[]
+  shifts         Shift[]
+  sales          Sale[]
+  transfersOut   StockTransfer[] @relation("TransferFrom")
+  transfersIn    StockTransfer[] @relation("TransferTo")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  pin          String?  // PIN singkat untuk login cepat di layar kasir (hash)
+  role         Role     @default(CASHIER)
+  branchId     String?  // null untuk OWNER (akses semua cabang)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch         Branch?         @relation(fields: [branchId], references: [id])
+  shifts         Shift[]
+  sales          Sale[]          @relation("SaleCashier")
+  voidedSales    Sale[]          @relation("SaleVoidedBy")
+  stockMovements StockMovement[]
+  transfers      StockTransfer[]
+
+  @@index([branchId])
+}
+
+// -------------------------------------------------------------
+//  Produk & stok
+// -------------------------------------------------------------
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  sku        String   @unique
+  barcode    String?  @unique // EAN-13 dsb, dibaca scanner
+  name       String
+  unit       String   @default("pcs")
+  price      Int      // harga jual default
+  cost       Int      @default(0) // harga modal, untuk laporan laba
+  categoryId String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category       Category?           @relation(fields: [categoryId], references: [id])
+  stocks         BranchStock[]
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+  transferItems  StockTransferItem[]
+
+  @@index([name])
+}
+
+/// Stok & harga per cabang (harga boleh beda antar cabang)
+model BranchStock {
+  id            String @id @default(cuid())
+  branchId      String
+  productId     String
+  quantity      Int    @default(0)
+  minStock      Int    @default(0) // peringatan stok menipis
+  priceOverride Int?   // null = pakai Product.price
+
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([branchId, productId])
+}
+
+/// Riwayat setiap perubahan stok — sumber kebenaran untuk audit
+model StockMovement {
+  id        String            @id @default(cuid())
+  branchId  String
+  productId String
+  type      StockMovementType
+  quantity  Int               // positif = masuk, negatif = keluar
+  refId     String?           // id Sale / StockTransfer terkait
+  note      String?
+  userId    String?
+  createdAt DateTime          @default(now())
+
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([branchId, productId, createdAt])
+}
+
+// -------------------------------------------------------------
+//  Shift kasir
+// -------------------------------------------------------------
+
+model Shift {
+  id           String      @id @default(cuid())
+  branchId     String
+  cashierId    String
+  status       ShiftStatus @default(OPEN)
+  openingCash  Int         // modal awal di laci
+  expectedCash Int?        // dihitung sistem saat tutup
+  countedCash  Int?        // dihitung kasir saat tutup
+  note         String?
+  openedAt     DateTime    @default(now())
+  closedAt     DateTime?
+
+  branch  Branch @relation(fields: [branchId], references: [id])
+  cashier User   @relation(fields: [cashierId], references: [id])
+  sales   Sale[]
+
+  @@index([branchId, status])
+}
+
+// -------------------------------------------------------------
+//  Transaksi penjualan
+// -------------------------------------------------------------
+
+model Sale {
+  id            String     @id @default(cuid())
+  invoiceNo     String     @unique // contoh: MDN01-20261125-0001
+  branchId      String
+  shiftId       String
+  cashierId     String
+  status        SaleStatus @default(PENDING_PAYMENT)
+  subtotal      Int
+  discountTotal Int        @default(0)
+  taxTotal      Int        @default(0)
+  total         Int
+  voidReason    String?
+  voidedById    String? // audit: siapa yang membatalkan
+  voidedAt      DateTime?
+  createdAt     DateTime   @default(now())
+  completedAt   DateTime?
+
+  branch   Branch     @relation(fields: [branchId], references: [id])
+  shift    Shift      @relation(fields: [shiftId], references: [id])
+  cashier  User       @relation("SaleCashier", fields: [cashierId], references: [id])
+  voidedBy User?      @relation("SaleVoidedBy", fields: [voidedById], references: [id])
+  items    SaleItem[]
+  payments Payment[]
+
+  @@index([branchId, createdAt])
+  @@index([shiftId])
+}
+
+/// Penghitung nomor invoice per cabang per hari.
+/// Diisi dengan INSERT ... ON CONFLICT DO UPDATE ... RETURNING di dalam transaksi checkout,
+/// sehingga dua kasir yang checkout bersamaan tidak pernah mendapat nomor yang sama.
+model InvoiceCounter {
+  branchId String
+  date     String // YYYYMMDD menurut zona Asia/Jakarta
+  lastSeq  Int    @default(0)
+
+  @@id([branchId, date])
+}
+
+model SaleItem {
+  id          String @id @default(cuid())
+  saleId      String
+  productId   String
+  productName String // snapshot: nama tetap benar walau produk diubah nanti
+  unitPrice   Int    // snapshot harga saat transaksi
+  unitCost    Int    // snapshot modal, untuk laporan laba
+  quantity    Int
+  discount    Int    @default(0) // potongan per baris (total, bukan per unit)
+  lineTotal   Int
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+/// Satu transaksi boleh punya >1 pembayaran (split payment)
+model Payment {
+  id           String        @id @default(cuid())
+  saleId       String
+  method       PaymentMethod
+  status       PaymentStatus @default(PENDING)
+  amount       Int
+  // Khusus tunai
+  tendered     Int?          // uang yang diterima
+  change       Int?          // kembalian
+  // Khusus QRIS / kartu (dari provider — saat ini provider "mock")
+  provider     String        @default("mock")
+  providerRef  String?       @unique // id transaksi dari provider
+  qrString     String?       // payload QR untuk QRIS
+  cardLast4    String?
+  approvalCode String?
+  expiresAt    DateTime?
+  createdAt    DateTime      @default(now())
+  paidAt       DateTime?
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([saleId])
+}
+
+// -------------------------------------------------------------
+//  Transfer stok antar-cabang (fase multi-cabang)
+// -------------------------------------------------------------
+
+model StockTransfer {
+  id           String         @id @default(cuid())
+  transferNo   String         @unique
+  fromBranchId String
+  toBranchId   String
+  status       TransferStatus @default(DRAFT)
+  createdById  String
+  note         String?
+  createdAt    DateTime       @default(now())
+  sentAt       DateTime?
+  receivedAt   DateTime?
+
+  fromBranch Branch              @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranch   Branch              @relation("TransferTo", fields: [toBranchId], references: [id])
+  createdBy  User                @relation(fields: [createdById], references: [id])
+  items      StockTransferItem[]
+}
+
+model StockTransferItem {
+  id         String @id @default(cuid())
+  transferId String
+  productId  String
+  quantity   Int
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product       @relation(fields: [productId], references: [id])
+}

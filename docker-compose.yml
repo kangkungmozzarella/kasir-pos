@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: kasir-pos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kasir
+      POSTGRES_PASSWORD: kasir
+      POSTGRES_DB: kasir_pos
+      TZ: Asia/Jakarta
+    ports:
+      - "5433:5432"
+    volumes:
+      - kasir-pos-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kasir -d kasir_pos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  kasir-pos-data:
