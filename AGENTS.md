@@ -22,4 +22,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Checkout lewat `checkoutCash` di `lib/checkout.ts`; jangan menghitung harga di klien untuk disimpan. Layar kasir hanya pratinjau.
 - Dialog di layar kasir harus mengembalikan fokus ke kolom cari (`finalFocus`), supaya scanner barcode tetap bekerja.
 - Halaman yang di-stream (Suspense) tetap berstatus HTTP 200 walau memanggil `notFound()`; uji isinya, bukan status kodenya.
+- Stok dipesan (berkurang) saat transaksi dibuat, termasuk yang masih menunggu QRIS/kartu; dikembalikan lewat `VOID_RETURN` bila dibatalkan atau kedaluwarsa. Ini menggantikan aturan nomor 6 di HANDOFF (keputusan pemilik, fase 4).
+- Pembayaran non-tunai lewat `lib/sale-flow.ts` (QRIS, kartu, pelunasan tunai, batal, webhook). Semua mutasi mengunci baris Sale (`FOR UPDATE`); panggilan ke provider dilakukan di luar transaksi database.
+- Polling status dari klien lewat route handler `GET /api/sales/[id]/status`, bukan server action (server action diproses berurutan per klien).
+- Integration test (`pnpm test:integration`) memakai database `kasir_pos_test`. `prisma migrate reset` diblokir untuk agent AI; setup test memakai `migrate deploy` + seed dan menolak URL yang bukan database lokal berakhiran `_test`.
+- Login/ganti kasir dengan PIN digeser ke fase 6 (keputusan pemilik); butuh pembatasan percobaan karena PIN hanya 4 sampai 6 digit.
 - Pesan commit tanpa baris `Co-Authored-By`.

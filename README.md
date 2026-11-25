@@ -11,9 +11,9 @@ Aplikasi kasir (point of sale) multi-cabang untuk toko kelontong dan minimarket.
 | 1. Fondasi | Next.js, Prisma 7 + PostgreSQL, login dan role, data contoh | Selesai |
 | 2. Master data | Produk, kategori, stok per cabang, pengguna | Selesai |
 | 3. Kasir + tunai + struk | Layar kasir, shift, pembayaran tunai, struk 58/80mm | Selesai |
-| 4. Pembayaran simulasi | QRIS dan kartu tiruan, webhook HMAC, split payment | Belum |
+| 4. Pembayaran simulasi | QRIS dan kartu tiruan, webhook HMAC, split payment | Selesai |
 | 5. Shift dan laporan | Tutup shift, void, dashboard dan grafik | Belum |
-| 6. Multi-cabang dan rilis | Transfer stok, printer ESC/POS, PWA, deploy | Belum |
+| 6. Multi-cabang dan rilis | Transfer stok, printer ESC/POS, login/ganti kasir dengan PIN, PWA, deploy | Belum |
 
 ## Stack
 
@@ -41,7 +41,8 @@ Perintah lain:
 
 | Perintah | Fungsi |
 |---|---|
-| `pnpm test` | Unit test (perhitungan harga, validasi, hak akses, format, barcode) |
+| `pnpm test` | Unit test (harga, validasi, hak akses, tanda tangan webhook, keranjang) |
+| `pnpm test:integration` | Test alur transaksi dengan database sungguhan (database terpisah `kasir_pos_test`, dibuat otomatis) |
 | `pnpm test:e2e` | Test browser dengan Playwright (butuh database yang sudah di-seed) |
 | `pnpm typecheck` | Pemeriksaan TypeScript |
 | `pnpm db:reset` | Hapus database, migrasi ulang, dan seed ulang |
@@ -59,7 +60,7 @@ Kata sandi semua akun: `demo12345`
 | Kasir | `kasir1.mdn01@demo.test`, `kasir2.mdn01@demo.test` | Medan Kota |
 | Kasir | `kasir1.mdn02@demo.test`, `kasir2.mdn02@demo.test` | Medan Baru |
 
-Kasir juga punya PIN demo (`1111` untuk kasir 1, `2222` untuk kasir 2). PIN sudah bisa diatur di halaman Pengguna, tapi masuk/ganti kasir dengan PIN belum dibuat.
+Kasir juga punya PIN demo (`1111` untuk kasir 1, `2222` untuk kasir 2). PIN sudah bisa diatur di halaman Pengguna; masuk/ganti kasir dengan PIN dijadwalkan di fase 6.
 
 ## Keputusan teknis
 
@@ -82,7 +83,40 @@ Kasir juga punya PIN demo (`1111` untuk kasir 1, `2222` untuk kasir 2). PIN suda
 - Kolom cari selalu fokus. Scanner barcode USB (yang mengetik kode lalu Enter) langsung menambahkan barang.
 - Shortcut: `F2` cari, `F4` bayar, `+` / `-` ubah jumlah barang terakhir, `Esc` dua kali batalkan transaksi.
 - Pembayaran tunai dengan tombol Uang pas dan saran nominal (50.000, 100.000, atau pembulatan ke atas).
+- QRIS dan kartu (EDC) simulasi, dan kombinasinya (mis. sebagian QRIS, sisanya tunai).
 - Struk 58 mm atau 80 mm (disimpan per perangkat), dicetak lewat dialog cetak browser, jadi bisa diuji tanpa printer dengan "Simpan sebagai PDF".
 - Cetak ulang struk dari riwayat transaksi shift.
 
 Arah desain dan alasan setiap pilihan visual ada di [`DESIGN.md`](DESIGN.md).
+
+## Arsitektur pembayaran
+
+Semua pembayaran non-tunai lewat satu interface, [`PaymentProvider`](lib/payments/provider.ts). Saat ini implementasinya [`MockProvider`](lib/payments/mock.ts) yang meniru perilaku gateway sungguhan; menambah Midtrans atau Xendit cukup dengan implementasi baru dan variabel `PAYMENT_PROVIDER`, tanpa mengubah layar kasir.
+
+```mermaid
+sequenceDiagram
+    participant K as Layar kasir
+    participant S as Server kasir
+    participant P as PaymentProvider (mock)
+    participant H as HP pembeli (simulator)
+    K->>S: Bayar QRIS (keranjang)
+    S->>S: Buat transaksi PENDING, pesan stok
+    S->>P: createQris(nominal)
+    P-->>S: providerRef, isi QR, berlaku 5 menit
+    S-->>K: QR (berisi URL simulator)
+    H->>H: Pindai QR, tekan Bayar
+    H->>S: Webhook bertanda tangan HMAC
+    S->>S: Verifikasi tanda tangan, tandai PAID (idempoten)
+    S->>S: Total terbayar = total? Transaksi selesai
+    loop tiap 2 detik
+        K->>S: Cek status
+    end
+    S-->>K: Selesai, tampilkan struk
+```
+
+- **QRIS:** QR berisi URL [halaman simulator](app/simulator/pay/[ref]/page.tsx), jadi bisa dipindai kamera HP saat demo. Halaman itu berlabel jelas sebagai demo. Di laptop, tombol "Buka simulator" membuka halaman yang sama.
+- **Webhook:** body ditandatangani HMAC-SHA256 bersama timestamp (`MOCK_WEBHOOK_SECRET`), ditolak bila tanda tangan salah atau umurnya lebih dari 5 menit. Webhook yang sama dikirim dua kali hanya berefek sekali.
+- **Kartu (EDC):** terminal "berpikir" 2 sampai 4 detik. Aturan uji ala sandbox: **nominal yang berakhiran 13 selalu ditolak**, selain itu disetujui dengan 4 digit kartu dan kode approval acak.
+- **Kombinasi:** QRIS dan kartu bisa untuk sebagian tagihan; tunai selalu menjadi pelunasan terakhir. Transaksi selesai saat jumlah pembayaran yang masuk sama dengan total.
+- **Stok dipesan saat menunggu.** Begitu transaksi QRIS/kartu dibuat, stoknya langsung berkurang supaya tidak terjual dua kali di kasir lain, dan dikembalikan bila transaksi dibatalkan sebelum ada uang masuk. Transaksi yang sudah dibayar sebagian tidak bisa dibatalkan kasir.
+- **Tahan reload.** Transaksi yang menunggu pembayaran tersimpan di server; bila halaman kasir dimuat ulang, transaksi itu dilanjutkan.
