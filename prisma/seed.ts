@@ -318,6 +318,7 @@ async function main() {
           status: "COMPLETED",
           subtotal: totals.subtotal,
           discountTotal: totals.discountTotal,
+          taxRate: branch.taxRate,
           taxTotal: totals.taxTotal,
           total: totals.total,
           createdAt,
@@ -352,7 +353,7 @@ async function main() {
         const base = { saleId, amount: totals.total, status: "PAID" as const, createdAt, paidAt: createdAt };
         if (method === "CASH") {
           const tendered = cashTendered(totals.total);
-          payments.push({ ...base, method, tendered, change: tendered - totals.total });
+          payments.push({ ...base, method, provider: "cash", tendered, change: tendered - totals.total });
           shift.cash += totals.total;
         } else if (method === "QRIS") {
           payments.push({ ...base, method, providerRef: `MOCK-QR-${randomUUID()}` });

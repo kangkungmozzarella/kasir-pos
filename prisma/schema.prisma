@@ -214,6 +214,7 @@ model Sale {
   status        SaleStatus @default(PENDING_PAYMENT)
   subtotal      Int
   discountTotal Int        @default(0)
+  taxRate       Int        @default(0) // snapshot tarif pajak (persen) saat transaksi
   taxTotal      Int        @default(0)
   total         Int
   voidReason    String?
