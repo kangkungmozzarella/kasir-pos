@@ -24,9 +24,12 @@ async function product(sku: string) {
 async function stockOf(productId: string) {
   return (await db.branchStock.findUniqueOrThrow({ where: { branchId_productId: { branchId: branch.id, productId } } })).quantity;
 }
-/** Keranjang 1 produk dengan total yang dihitung sama seperti layar kasir. */
+/** Keranjang 1 produk. Stok diisi dulu lewat PURCHASE supaya test tidak bergantung pada stok acak dari seed. */
 async function cart(sku: string, qty = 1) {
   const s = await product(sku);
+  if (s.quantity < 50) {
+    await db.$transaction((tx) => applyStockDelta(tx, { branchId: branch.id, productId: s.productId, delta: 100, type: "PURCHASE", note: "Persiapan test" }));
+  }
   const unitPrice = s.priceOverride ?? s.product.price;
   const total = computeTotals([{ unitPrice, qty }], { taxRate: branch.taxRate }).total;
   return { productId: s.productId, input: { items: [{ productId: s.productId, qty, discount: 0 }], transactionDiscount: 0, expectedTotal: total }, total };

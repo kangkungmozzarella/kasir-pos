@@ -5,6 +5,7 @@ import { db } from "./db";
 import { computeTotals } from "./pricing";
 import { applyWebhook, cancelPendingSale, payCashRemaining, startQris } from "./sale-flow";
 import { closeShift, getShiftRecap, openShift } from "./shift";
+import { applyStockDelta } from "./stock";
 import { voidSale } from "./void";
 
 // Berkas ini memakai cabang MDN02 supaya tidak bercampur dengan shift yang dibuka sale-flow.int.test.ts.
@@ -28,8 +29,12 @@ const asUser = (u: { id: string; name: string; email: string; role: CurrentUser[
 async function stockOf(productId: string) {
   return (await db.branchStock.findUniqueOrThrow({ where: { branchId_productId: { branchId: branch.id, productId } } })).quantity;
 }
+/** Keranjang 1 produk. Stok diisi dulu lewat PURCHASE supaya test tidak bergantung pada stok acak dari seed. */
 async function cart(sku: string, qty = 1) {
   const s = await db.branchStock.findFirstOrThrow({ where: { branchId: branch.id, product: { sku } }, include: { product: true } });
+  if (s.quantity < 50) {
+    await db.$transaction((tx) => applyStockDelta(tx, { branchId: branch.id, productId: s.productId, delta: 100, type: "PURCHASE", note: "Persiapan test" }));
+  }
   const unitPrice = s.priceOverride ?? s.product.price;
   const total = computeTotals([{ unitPrice, qty }], { taxRate: branch.taxRate }).total;
   return { productId: s.productId, input: { items: [{ productId: s.productId, qty, discount: 0 }], transactionDiscount: 0, expectedTotal: total }, total };
