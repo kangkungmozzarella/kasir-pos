@@ -30,6 +30,10 @@ const optionalText = (max: number, label: string) =>
 
 export const rupiah = (label: string) =>
   z.string({ error: `${label} wajib diisi.` }).transform((v, ctx) => {
+    if (v.trim() === "") {
+      ctx.addIssue({ code: "custom", message: `${label} wajib diisi.` });
+      return z.NEVER;
+    }
     const n = parseRupiah(v);
     if (n === null) {
       ctx.addIssue({ code: "custom", message: `${label} harus nominal Rupiah tanpa desimal, mis. 12.500.` });
@@ -157,6 +161,45 @@ export const userUpdateSchema = z.object({
   pin,
   clearPin: checkbox,
 });
+
+// ---------------------------------------------------------------------------
+//  Kasir
+// ---------------------------------------------------------------------------
+
+export const openShiftSchema = z.object({
+  openingCash: rupiah("Modal awal"),
+  branchId: z.string().transform((v) => v || null),
+});
+
+const int = (label: string, max: number) =>
+  z
+    .number({ error: `${label} harus angka.` })
+    .int({ error: `${label} harus bilangan bulat.` })
+    .min(0, { error: `${label} tidak boleh negatif.` })
+    .max(max, { error: `${label} terlalu besar.` });
+
+/** Input checkout dari layar kasir. Harga TIDAK dikirim klien; server mengambilnya sendiri. */
+export const checkoutSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        qty: int("Jumlah", 10_000).min(1, { error: "Jumlah minimal 1." }),
+        discount: int("Diskon baris", 1_000_000_000),
+      }),
+    )
+    .min(1, { error: "Keranjang masih kosong." })
+    .max(200, { error: "Maksimal 200 baris per transaksi." })
+    .refine((items) => new Set(items.map((i) => i.productId)).size === items.length, {
+      error: "Produk yang sama muncul dua kali di keranjang.",
+    }),
+  transactionDiscount: int("Diskon transaksi", 1_000_000_000),
+  /** Total yang dilihat kasir; ditolak bila berbeda dengan hitungan server. */
+  expectedTotal: int("Total", 10_000_000_000),
+  tendered: int("Uang diterima", 10_000_000_000),
+});
+
+export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 /** Ambil nilai string dari FormData untuk dikirim ke schema (null -> undefined). */
 export function formValues(formData: FormData, keys: readonly string[]): Record<string, string | undefined> {

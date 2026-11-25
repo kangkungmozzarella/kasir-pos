@@ -82,3 +82,11 @@ describe("userCreateSchema", () => {
     expect(userCreateSchema.safeParse({ ...base, pin: "1234" }).success).toBe(true);
   });
 });
+
+describe("rupiah kosong", () => {
+  it("memberi pesan 'wajib diisi', bukan 'format salah'", () => {
+    const r = productSchema.safeParse({ ...validProduct, price: "  " });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0].message).toBe("Harga jual wajib diisi.");
+  });
+});
