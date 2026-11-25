@@ -9,7 +9,7 @@ Aplikasi kasir (point of sale) multi-cabang untuk toko kelontong dan minimarket.
 | Fase | Isi | Status |
 |---|---|---|
 | 1. Fondasi | Next.js, Prisma 7 + PostgreSQL, login dan role, data contoh | Selesai |
-| 2. Master data | Produk, kategori, stok per cabang, pengguna | Belum |
+| 2. Master data | Produk, kategori, stok per cabang, pengguna | Selesai |
 | 3. Kasir + tunai + struk | Layar kasir, shift, pembayaran tunai, struk 58/80mm | Belum |
 | 4. Pembayaran simulasi | QRIS dan kartu tiruan, webhook HMAC, split payment | Belum |
 | 5. Shift dan laporan | Tutup shift, void, dashboard dan grafik | Belum |
@@ -41,7 +41,7 @@ Perintah lain:
 
 | Perintah | Fungsi |
 |---|---|
-| `pnpm test` | Unit test (perhitungan harga, format, barcode) |
+| `pnpm test` | Unit test (perhitungan harga, validasi, hak akses, format, barcode) |
 | `pnpm test:e2e` | Test browser dengan Playwright (butuh database yang sudah di-seed) |
 | `pnpm typecheck` | Pemeriksaan TypeScript |
 | `pnpm db:reset` | Hapus database, migrasi ulang, dan seed ulang |
@@ -65,9 +65,12 @@ Kasir juga punya PIN demo (`1111` untuk kasir 1, `2222` untuk kasir 2) yang akan
 
 - **Uang selalu integer Rupiah.** Tidak ada float untuk nominal. Rumus total ada di satu modul murni, [`lib/pricing.ts`](lib/pricing.ts), dan dipakai oleh checkout maupun seed.
 - **Server menghitung ulang semua angka.** Klien hanya mengirim produk, jumlah, dan diskon.
+- **Hak akses per role.** Katalog (produk & kategori) berlaku untuk semua cabang, jadi hanya Pemilik yang mengubahnya. Admin mengatur stok, stok minimum, harga khusus cabang, dan akun kasir di cabangnya sendiri. Kasir hanya memakai layar kasir.
 - **Otorisasi di server.** [`proxy.ts`](proxy.ts) hanya mengarahkan pengunjung dengan cepat; hak akses yang sebenarnya dicek ulang ke database di [`lib/auth.ts`](lib/auth.ts) pada setiap halaman dan aksi. Admin dan kasir dibatasi ke cabangnya sendiri lewat [`lib/permissions.ts`](lib/permissions.ts).
 - **Nomor invoice** berformat `MDN01-20261125-0001`, urut per cabang per hari. Tabel `InvoiceCounter` dinaikkan dengan `INSERT ... ON CONFLICT ... RETURNING` di dalam transaksi checkout supaya dua kasir tidak pernah mendapat nomor yang sama.
-- **Audit stok.** Setiap perubahan stok dicatat di `StockMovement`; jumlah semua pergerakan selalu sama dengan stok di `BranchStock`.
+- **Audit stok.** Setiap perubahan stok (barang masuk, penjualan, stok opname) dicatat di `StockMovement`; jumlah semua pergerakan selalu sama dengan stok di `BranchStock`.
+- **Stok tidak bisa minus, termasuk saat ramai.** Pengurangan stok di [`lib/stock.ts`](lib/stock.ts) memeriksa sisa stok di dalam satu perintah `UPDATE`, sehingga dua kasir yang menjual barang terakhir bersamaan tidak bisa sama-sama berhasil. Stok opname mengunci baris (`SELECT ... FOR UPDATE`) supaya selisih yang dicatat tepat.
+- **Akun dinonaktifkan langsung keluar.** Session dicek ulang ke database setiap request, jadi akun yang dinonaktifkan kehilangan akses tanpa menunggu cookie kedaluwarsa.
 - **Barcode contoh** memakai awalan GS1 `20` (khusus pemakaian internal toko) dengan digit cek EAN-13 yang valid, sehingga tidak bertabrakan dengan produk asli.
 
 Arah desain dan alasan setiap pilihan visual ada di [`DESIGN.md`](DESIGN.md).
