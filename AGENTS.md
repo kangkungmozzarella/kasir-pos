@@ -19,4 +19,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Server action: validasi Zod di `lib/validation.ts`, cek hak akses dengan `assertUser`, bungkus error dengan `actionError` dari `lib/actions.ts`. Jangan kirim objek Prisma utuh ke client component (bisa membocorkan hash PIN/kata sandi).
 - Perubahan stok selalu lewat `applyStockDelta` / `setStockCount` di `lib/stock.ts` di dalam `db.$transaction`.
 - Komponen tanpa "use client" harus mengimpor ikon dari `@phosphor-icons/react/dist/ssr`.
+- Checkout lewat `checkoutCash` di `lib/checkout.ts`; jangan menghitung harga di klien untuk disimpan. Layar kasir hanya pratinjau.
+- Dialog di layar kasir harus mengembalikan fokus ke kolom cari (`finalFocus`), supaya scanner barcode tetap bekerja.
+- Halaman yang di-stream (Suspense) tetap berstatus HTTP 200 walau memanggil `notFound()`; uji isinya, bukan status kodenya.
 - Pesan commit tanpa baris `Co-Authored-By`.
