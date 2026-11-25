@@ -43,7 +43,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 /** Untuk halaman: arahkan ke /login bila belum masuk, atau ke beranda role bila tidak berhak. */
 export async function requireUser(allowed?: readonly Role[]): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // Lewat route handler supaya cookie yang tidak berlaku lagi ikut dihapus.
+  if (!user) redirect("/api/auth/end");
   if (allowed && !allowed.includes(user.role)) redirect(homePathFor(user.role));
   return user;
 }
