@@ -202,6 +202,6 @@ test.describe("layar HP", () => {
     await expect(bar).toBeEnabled();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
     await bar.click();
-    await expect(page.getByRole("dialog").getByText("Pembayaran tunai")).toBeVisible();
+    await expect(page.getByRole("dialog").getByRole("radio", { name: "Tunai" })).toBeChecked();
   });
 });

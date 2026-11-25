@@ -17,6 +17,8 @@ export default defineConfig({
     command: `pnpm build && pnpm start -p ${PORT}`,
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: !process.env.CI,
+    // Terminal EDC simulasi dipercepat supaya test kartu tidak menunggu 2 sampai 4 detik.
+    env: { MOCK_TERMINAL_DELAY_MS: "300" },
     timeout: 180_000,
   },
 });
