@@ -1,0 +1,73 @@
+# Kasir
+
+Aplikasi kasir (point of sale) multi-cabang untuk toko kelontong dan minimarket. Proyek portofolio.
+
+> **Catatan:** semua toko, produk, akun, dan transaksi di aplikasi ini fiktif. Pembayaran QRIS dan kartu (EDC) adalah simulasi; tidak ada integrasi bank dan tidak ada uang yang berpindah.
+
+## Status
+
+| Fase | Isi | Status |
+|---|---|---|
+| 1. Fondasi | Next.js, Prisma 7 + PostgreSQL, login dan role, data contoh | Selesai |
+| 2. Master data | Produk, kategori, stok per cabang, pengguna | Belum |
+| 3. Kasir + tunai + struk | Layar kasir, shift, pembayaran tunai, struk 58/80mm | Belum |
+| 4. Pembayaran simulasi | QRIS dan kartu tiruan, webhook HMAC, split payment | Belum |
+| 5. Shift dan laporan | Tutup shift, void, dashboard dan grafik | Belum |
+| 6. Multi-cabang dan rilis | Transfer stok, printer ESC/POS, PWA, deploy | Belum |
+
+## Stack
+
+- **Next.js 16** (App Router, Cache Components) + TypeScript
+- **PostgreSQL** + **Prisma 7** (driver adapter `@prisma/adapter-pg`)
+- **iron-session** untuk session cookie terenkripsi, **bcrypt** untuk kata sandi
+- **Tailwind CSS 4** + **shadcn/ui** (Base UI), ikon **Phosphor**
+- **Zod** untuk validasi input
+- **Vitest** (logika bisnis) dan **Playwright** (alur di browser)
+
+## Menjalankan di komputer sendiri
+
+Butuh Node.js 22+, pnpm 10+, dan Docker.
+
+```bash
+pnpm install
+cp .env.example .env          # lalu isi AUTH_SECRET dan MOCK_WEBHOOK_SECRET (openssl rand -base64 32)
+pnpm db:up                    # PostgreSQL di Docker, port 5433
+pnpm db:migrate               # buat tabel
+pnpm db:seed                  # data contoh: 2 cabang, 54 produk, 30 hari transaksi
+pnpm dev                      # http://localhost:3000
+```
+
+Perintah lain:
+
+| Perintah | Fungsi |
+|---|---|
+| `pnpm test` | Unit test (perhitungan harga, format, barcode) |
+| `pnpm test:e2e` | Test browser dengan Playwright (butuh database yang sudah di-seed) |
+| `pnpm typecheck` | Pemeriksaan TypeScript |
+| `pnpm db:reset` | Hapus database, migrasi ulang, dan seed ulang |
+| `pnpm studio` | Prisma Studio untuk melihat isi database |
+
+## Akun demo
+
+Kata sandi semua akun: `demo12345`
+
+| Role | Email | Cabang |
+|---|---|---|
+| Pemilik | `pemilik@demo.test` | Semua cabang |
+| Admin cabang | `admin.mdn01@demo.test` | Medan Kota (MDN01) |
+| Admin cabang | `admin.mdn02@demo.test` | Medan Baru (MDN02) |
+| Kasir | `kasir1.mdn01@demo.test`, `kasir2.mdn01@demo.test` | Medan Kota |
+| Kasir | `kasir1.mdn02@demo.test`, `kasir2.mdn02@demo.test` | Medan Baru |
+
+Kasir juga punya PIN demo (`1111` untuk kasir 1, `2222` untuk kasir 2) yang akan dipakai untuk ganti kasir cepat di layar kasir.
+
+## Keputusan teknis
+
+- **Uang selalu integer Rupiah.** Tidak ada float untuk nominal. Rumus total ada di satu modul murni, [`lib/pricing.ts`](lib/pricing.ts), dan dipakai oleh checkout maupun seed.
+- **Server menghitung ulang semua angka.** Klien hanya mengirim produk, jumlah, dan diskon.
+- **Otorisasi di server.** [`proxy.ts`](proxy.ts) hanya mengarahkan pengunjung dengan cepat; hak akses yang sebenarnya dicek ulang ke database di [`lib/auth.ts`](lib/auth.ts) pada setiap halaman dan aksi. Admin dan kasir dibatasi ke cabangnya sendiri lewat [`lib/permissions.ts`](lib/permissions.ts).
+- **Nomor invoice** berformat `MDN01-20261125-0001`, urut per cabang per hari. Tabel `InvoiceCounter` dinaikkan dengan `INSERT ... ON CONFLICT ... RETURNING` di dalam transaksi checkout supaya dua kasir tidak pernah mendapat nomor yang sama.
+- **Audit stok.** Setiap perubahan stok dicatat di `StockMovement`; jumlah semua pergerakan selalu sama dengan stok di `BranchStock`.
+- **Barcode contoh** memakai awalan GS1 `20` (khusus pemakaian internal toko) dengan digit cek EAN-13 yang valid, sehingga tidak bertabrakan dengan produk asli.
+
+Arah desain dan alasan setiap pilihan visual ada di [`DESIGN.md`](DESIGN.md).
