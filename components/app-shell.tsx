@@ -9,12 +9,16 @@ import { requireUser } from "@/lib/auth";
 import { navFor } from "@/lib/nav";
 import { ROLE_LABEL } from "@/lib/roles";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+/**
+ * `wide`: untuk layar kasir. Lebar penuh, dan di layar besar tingginya pas satu layar
+ * supaya daftar produk dan keranjang bisa digulir sendiri-sendiri.
+ */
+export function AppShell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <div aria-hidden className="awning" />
-      <header className="relative border-b">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
+    <div className={wide ? "flex min-h-dvh flex-col lg:h-dvh" : "flex min-h-dvh flex-col"}>
+      <div aria-hidden className="awning shrink-0" />
+      <header className="relative shrink-0 border-b">
+        <div className={`mx-auto flex h-16 w-full items-center gap-3 px-4 sm:gap-6 sm:px-6 ${wide ? "" : "max-w-6xl"}`}>
           <Wordmark />
           {/* Bagian yang bergantung pada session dirender per request; sisanya ikut static shell. */}
           <Suspense fallback={<div className="flex-1" />}>
@@ -23,7 +27,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <ThemeToggle />
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <main className={wide ? "flex w-full flex-1 flex-col lg:min-h-0" : "mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8"}>
+        {children}
+      </main>
     </div>
   );
 }
