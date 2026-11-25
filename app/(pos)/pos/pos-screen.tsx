@@ -1,21 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ClockCounterClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cartReducer, emptyCart, normalizeDiscounts } from "@/lib/cart";
 import { formatNumber, formatRupiah } from "@/lib/format";
 import { computeTotals } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { checkoutAction } from "./actions";
 import { AmountInput, CartLines } from "./cart-panel";
 import { DoneDialog, type DoneSale } from "./done-dialog";
 import { HistoryDialog } from "./history-dialog";
-import { PayDialog } from "./pay-dialog";
+import type { ClientSaleState } from "./client-state";
+import { PaymentDialog } from "./payment-dialog";
 import { ProductGrid } from "./product-grid";
 import type { PosCategory, PosProduct, PosShift, RecentSale } from "./types";
 
 type Notice = { tone: "ok" | "error" | "info"; text: string } | null;
+
+export type PendingSale = {
+  state: ClientSaleState;
+  items: { productId: string; quantity: number; discount: number }[];
+  transactionDiscount: number;
+};
 
 function Kbd({ children, className }: { children: React.ReactNode; className?: string }) {
   return <kbd className={cn("rounded border border-current/30 px-1.5 py-0.5 font-mono text-[11px] leading-none font-medium opacity-80", className)}>{children}</kbd>;
@@ -26,27 +33,43 @@ export function PosScreen({
   categories,
   shift,
   recentSales,
+  pending,
 }: {
   products: PosProduct[];
   categories: PosCategory[];
   shift: PosShift;
   recentSales: RecentSale[];
+  /** Transaksi yang masih menunggu pembayaran (dilanjutkan setelah halaman dimuat ulang). */
+  pending: PendingSale | null;
 }) {
-  const [cart, dispatch] = useReducer(cartReducer, emptyCart);
+  const router = useRouter();
+  const [cart, dispatch] = useReducer(cartReducer, pending, (p) =>
+    p
+      ? {
+          lines: p.items.map((i) => ({ productId: i.productId, qty: i.quantity, discount: i.discount })),
+          transactionDiscount: p.transactionDiscount,
+          selectedId: null,
+        }
+      : emptyCart,
+  );
+  // Transaksi yang sudah dibuat di server dan menunggu QRIS/kartu. Selama ada, keranjang terkunci.
+  const [sale, setSale] = useState<ClientSaleState | null>(pending?.state ?? null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [editingTxDiscount, setEditingTxDiscount] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
-  const [payError, setPayError] = useState<string>();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [done, setDone] = useState<DoneSale | null>(null);
-  const [paying, startPaying] = useTransition();
   const searchRef = useRef<HTMLInputElement>(null);
 
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
-  const inCart = useCallback((id: string) => cart.lines.find((l) => l.productId === id)?.qty ?? 0, [cart.lines]);
+  // Saat transaksi menunggu, stok di server sudah dipesan; jangan dikurangi dua kali.
+  const inCart = useCallback(
+    (id: string) => (sale ? 0 : (cart.lines.find((l) => l.productId === id)?.qty ?? 0)),
+    [cart.lines, sale],
+  );
   const available = useCallback((p: PosProduct) => p.stock - inCart(p.id), [inCart]);
   const focusSearch = useCallback(() => requestAnimationFrame(() => searchRef.current?.focus()), []);
 
@@ -76,16 +99,22 @@ export function PosScreen({
         )
       : null;
   const itemCount = lines.reduce((s, l) => s + l.qty, 0);
-  const blocker = missing
+  const blocker = sale
+    ? null
+    : missing
     ? "Hapus produk yang sudah tidak dijual dari keranjang."
     : overStock
       ? `Jumlah ${byId.get(overStock.productId)!.name} melebihi stok (${byId.get(overStock.productId)!.stock}).`
       : null;
-  const canPay = !!totals && !blocker;
+  const canPay = !!sale || (!!totals && !blocker);
 
   // ---- Aksi --------------------------------------------------------------------
   const add = useCallback(
     (p: PosProduct) => {
+      if (sale) {
+        setNotice({ tone: "info", text: `Selesaikan pembayaran ${sale.invoiceNo} dulu sebelum menambah barang.` });
+        return;
+      }
       if (available(p) <= 0) {
         setNotice({ tone: "error", text: `Stok ${p.name} habis.` });
         return;
@@ -94,7 +123,7 @@ export function PosScreen({
       setNotice({ tone: "ok", text: `Ditambahkan: ${p.name}` });
       setConfirmClear(false);
     },
-    [available],
+    [available, sale],
   );
 
   /** Enter di kolom cari. Scanner barcode USB mengetik kode lalu Enter, jadi jalurnya sama. */
@@ -118,29 +147,60 @@ export function PosScreen({
   }
 
   function openPay() {
+    if (sale) return setPayOpen(true);
     if (!totals) return setNotice({ tone: "info", text: "Keranjang masih kosong." });
     if (blocker) return setNotice({ tone: "error", text: blocker });
-    setPayError(undefined);
     setPayOpen(true);
   }
 
-  function pay(tendered: number) {
-    if (!totals) return;
-    startPaying(async () => {
-      const res = await checkoutAction({
-        items: lines.map((l) => ({ productId: l.productId, qty: l.qty, discount: l.discount })),
-        transactionDiscount: txDiscount,
-        expectedTotal: totals.total,
-        tendered,
-      });
-      if (res.ok) {
-        setPayOpen(false);
-        setDone(res);
-      } else {
-        setPayError(res.error);
-      }
-    });
+  const cartInput =
+    totals && !sale
+      ? {
+          items: lines.map((l) => ({ productId: l.productId, qty: l.qty, discount: l.discount })),
+          transactionDiscount: txDiscount,
+          expectedTotal: totals.total,
+        }
+      : null;
+
+  function completed(d: DoneSale) {
+    setPayOpen(false);
+    setSale(null);
+    setDone(d);
   }
+
+  function cancelled(invoiceNo: string) {
+    setPayOpen(false);
+    setSale(null);
+    dispatch({ type: "clear" });
+    setNotice({ tone: "info", text: `Transaksi ${invoiceNo} dibatalkan. Stok dikembalikan.` });
+    focusSearch();
+  }
+
+  // Selama QR tampil, cek status tiap 2 detik. Webhook dari gateway yang mengubah
+  // status di server; layar kasir cukup mengikuti.
+  const activeQrisId = sale?.active?.method === "QRIS" ? sale.active.id : null;
+  const saleId = sale?.saleId;
+  const onPolled = useEffectEvent((next: ClientSaleState) => {
+    if (next.status === "COMPLETED") {
+      completed({ saleId: next.saleId, invoiceNo: next.invoiceNo, total: next.total, change: 0 });
+      router.refresh(); // stok dan riwayat terbaru
+    } else if (next.active?.id !== activeQrisId) {
+      setSale(next); // QR ditolak, kedaluwarsa, atau sebagian sudah lunas
+    }
+  });
+  useEffect(() => {
+    if (!activeQrisId || !saleId) return;
+    let stopped = false;
+    const id = window.setInterval(async () => {
+      const res = await fetch(`/api/sales/${saleId}/status`, { cache: "no-store" }).catch(() => null);
+      if (!res?.ok || stopped) return;
+      onPolled(await res.json());
+    }, 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+    };
+  }, [activeQrisId, saleId]);
 
   function nextTransaction() {
     setDone(null);
@@ -152,6 +212,11 @@ export function PosScreen({
   }
 
   const requestClear = useCallback(() => {
+    if (sale) {
+      setNotice({ tone: "info", text: "Transaksi ini menunggu pembayaran. Batalkan lewat dialog pembayaran." });
+      setPayOpen(true);
+      return;
+    }
     if (cart.lines.length === 0) return;
     if (confirmClear) {
       dispatch({ type: "clear" });
@@ -161,7 +226,7 @@ export function PosScreen({
       setConfirmClear(true);
       setNotice({ tone: "info", text: "Tekan Esc atau Batal sekali lagi untuk mengosongkan keranjang." });
     }
-  }, [cart.lines.length, confirmClear]);
+  }, [cart.lines.length, confirmClear, sale]);
 
   useEffect(() => {
     if (!confirmClear) return;
@@ -202,7 +267,8 @@ export function PosScreen({
   }, []);
 
   // ---- Tampilan ----------------------------------------------------------------
-  const payLabel = totals ? formatRupiah(totals.total) : formatRupiah(0);
+  // Saat menunggu pembayaran, angka dari server (sisa tagihan) yang berlaku, bukan pratinjau keranjang.
+  const payLabel = formatRupiah(sale ? sale.total - sale.paid : (totals?.total ?? 0));
 
   return (
     <div className="flex flex-1 flex-col lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_26rem]">
@@ -284,7 +350,18 @@ export function PosScreen({
           )}
         </div>
 
-        <CartLines lines={cart.lines} selectedId={cart.selectedId} productOf={(id) => byId.get(id)} dispatch={dispatch} />
+        {sale && (
+          <p role="status" className="border-b bg-muted px-4 py-2.5 text-sm">
+            <span className="font-semibold">Menunggu pembayaran {sale.invoiceNo}.</span> Keranjang dikunci; stok sudah dipesan.
+          </p>
+        )}
+        <CartLines
+          lines={cart.lines}
+          selectedId={cart.selectedId}
+          productOf={(id) => byId.get(id)}
+          dispatch={dispatch}
+          locked={!!sale}
+        />
 
         <div className="shrink-0 space-y-1.5 border-t px-4 py-3 text-sm">
           <div className="flex justify-between">
@@ -351,17 +428,18 @@ export function PosScreen({
         </Button>
       </div>
 
-      <PayDialog
+      <PaymentDialog
         open={payOpen}
         onOpenChange={(o) => {
           setPayOpen(o);
           if (!o) focusSearch();
         }}
-        total={totals?.total ?? 0}
-        pending={paying}
-        error={payError}
-        onPay={pay}
         returnFocus={searchRef}
+        cart={cartInput}
+        sale={sale}
+        onSale={setSale}
+        onDone={completed}
+        onCancelled={cancelled}
       />
       <DoneDialog sale={done} onNext={nextTransaction} returnFocus={searchRef} />
       <HistoryDialog

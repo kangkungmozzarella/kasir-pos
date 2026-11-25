@@ -15,9 +15,11 @@ type Props = {
   selectedId: string | null;
   productOf: (id: string) => PosProduct | undefined;
   dispatch: (a: CartAction) => void;
+  /** Transaksi sedang menunggu pembayaran: isi keranjang tidak bisa diubah. */
+  locked?: boolean;
 };
 
-export function CartLines({ lines, selectedId, productOf, dispatch }: Props) {
+export function CartLines({ lines, selectedId, productOf, dispatch, locked = false }: Props) {
   if (lines.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
@@ -35,6 +37,7 @@ export function CartLines({ lines, selectedId, productOf, dispatch }: Props) {
           product={productOf(line.productId)}
           selected={line.productId === selectedId}
           dispatch={dispatch}
+          locked={locked}
         />
       ))}
     </ul>
@@ -46,11 +49,13 @@ function CartRow({
   product,
   selected,
   dispatch,
+  locked,
 }: {
   line: CartLine;
   product: PosProduct | undefined;
   selected: boolean;
   dispatch: (a: CartAction) => void;
+  locked: boolean;
 }) {
   const [editingDiscount, setEditingDiscount] = useState(false);
   const id = line.productId;
@@ -68,6 +73,21 @@ function CartRow({
 
   const gross = product.price * line.qty;
   const max = product.stock;
+
+  if (locked) {
+    return (
+      <li className="flex items-start justify-between gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-sm leading-snug font-medium">{product.name}</p>
+          <p className="money text-xs text-muted-foreground">
+            {formatNumber(line.qty)} x {formatRupiah(product.price)}
+            {line.discount > 0 && ` · diskon ${formatRupiah(line.discount)}`}
+          </p>
+        </div>
+        <p className="money shrink-0 font-semibold">{formatRupiah(gross - line.discount)}</p>
+      </li>
+    );
+  }
 
   return (
     <li

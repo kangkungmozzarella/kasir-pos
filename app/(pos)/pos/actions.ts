@@ -4,10 +4,20 @@ import { refresh } from "next/cache";
 import type { ActionState } from "@/lib/action-state";
 import { actionError, success, validationFailed } from "@/lib/actions";
 import { assertUser } from "@/lib/auth";
-import { checkoutCash } from "@/lib/checkout";
+import { checkoutCash, createPendingSale } from "@/lib/checkout";
+import { requestOrigin } from "@/lib/origin";
 import { PERMISSIONS } from "@/lib/permissions";
+import {
+  cancelActivePayment,
+  cancelPendingSale,
+  getSaleState,
+  payByCard,
+  payCashRemaining,
+  startQris,
+} from "@/lib/sale-flow";
 import { openShift } from "@/lib/shift";
-import { checkoutSchema, formValues, openShiftSchema } from "@/lib/validation";
+import { amountSchema, cartSchema, checkoutSchema, formValues, openShiftSchema } from "@/lib/validation";
+import { toClientState, type ClientSaleState } from "./client-state";
 import type { CheckoutResponse } from "./types";
 
 export async function openShiftAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -24,20 +34,104 @@ export async function openShiftAction(_prev: ActionState, formData: FormData): P
   }
 }
 
+function failure(err: unknown) {
+  return { ok: false as const, error: actionError(err).error ?? "Transaksi gagal. Coba lagi." };
+}
+
+/** Bayar tunai penuh dari keranjang (jalur tercepat, tanpa transaksi menunggu). */
 export async function checkoutAction(input: unknown): Promise<CheckoutResponse> {
   try {
     const user = await assertUser(PERMISSIONS["pos:use"]);
     const parsed = checkoutSchema.safeParse(input);
-    if (!parsed.success) {
-      return { ok: false, error: parsed.error.issues[0]?.message ?? "Data transaksi tidak valid." };
-    }
-    const result = await checkoutCash(user, parsed.data);
-    return { ok: true, ...result };
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data transaksi tidak valid." };
+    return { ok: true, ...(await checkoutCash(user, parsed.data)) };
   } catch (err) {
-    const state = actionError(err);
-    return { ok: false, error: state.error ?? "Transaksi gagal. Coba lagi." };
+    return failure(err);
   } finally {
-    // Berhasil atau gagal, layar kasir perlu stok dan harga terbaru.
+    refresh(); // berhasil atau gagal, layar kasir perlu stok dan harga terbaru
+  }
+}
+
+export type SaleActionResult =
+  | {
+      ok: true;
+      state: ClientSaleState;
+      /** Alasan kartu ditolak, bila ada. */
+      declined?: string;
+      /** Kembalian bila transaksi dilunasi dengan tunai. */
+      change?: number;
+    }
+  | { ok: false; error: string };
+
+/** Buat transaksi yang akan dibayar QRIS/kartu/kombinasi. Stok langsung dipesan. */
+export async function startSaleAction(input: unknown): Promise<SaleActionResult> {
+  try {
+    const user = await assertUser(PERMISSIONS["pos:use"]);
+    const parsed = cartSchema.safeParse(input);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data transaksi tidak valid." };
+    const { saleId } = await createPendingSale(user, parsed.data);
+    return { ok: true, state: toClientState((await getSaleState(saleId, user))!) };
+  } catch (err) {
+    return failure(err);
+  } finally {
+    refresh();
+  }
+}
+
+async function withSale(saleId: unknown, run: (user: Awaited<ReturnType<typeof assertUser>>, id: string) => Promise<SaleActionResult>) {
+  try {
+    const user = await assertUser(PERMISSIONS["pos:use"]);
+    if (typeof saleId !== "string" || !saleId) return { ok: false as const, error: "Transaksi tidak valid." };
+    return await run(user, saleId);
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+export async function qrisAction(saleId: unknown, amount: unknown): Promise<SaleActionResult> {
+  return withSale(saleId, async (user, id) => {
+    const parsed = amountSchema.safeParse(amount);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Nominal tidak valid." };
+    const state = await startQris(user, id, parsed.data, await requestOrigin());
+    return { ok: true, state: toClientState(state) };
+  });
+}
+
+export async function cancelQrisAction(saleId: unknown): Promise<SaleActionResult> {
+  return withSale(saleId, async (user, id) => ({ ok: true, state: toClientState(await cancelActivePayment(user, id)) }));
+}
+
+export async function cardAction(saleId: unknown, amount: unknown): Promise<SaleActionResult> {
+  const result = await withSale(saleId, async (user, id) => {
+    const parsed = amountSchema.safeParse(amount);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Nominal tidak valid." };
+    const { state, declined } = await payByCard(user, id, parsed.data, await requestOrigin());
+    return { ok: true, state: toClientState(state), declined: declined ?? undefined };
+  });
+  if (result.ok && result.state.status === "COMPLETED") refresh();
+  return result;
+}
+
+export async function cashRemainingAction(saleId: unknown, tendered: unknown): Promise<SaleActionResult> {
+  const result = await withSale(saleId, async (user, id) => {
+    const parsed = amountSchema.safeParse(tendered);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Nominal tidak valid." };
+    const { change, ...state } = await payCashRemaining(user, id, parsed.data);
+    return { ok: true, state: toClientState(state), change };
+  });
+  refresh();
+  return result;
+}
+
+export async function cancelSaleAction(saleId: unknown): Promise<{ ok: true; invoiceNo: string } | { ok: false; error: string }> {
+  try {
+    const user = await assertUser(PERMISSIONS["pos:use"]);
+    if (typeof saleId !== "string" || !saleId) return { ok: false, error: "Transaksi tidak valid." };
+    const { invoiceNo } = await cancelPendingSale(user, saleId);
+    return { ok: true, invoiceNo };
+  } catch (err) {
+    return failure(err);
+  } finally {
     refresh();
   }
 }

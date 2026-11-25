@@ -6,7 +6,9 @@ import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { PERMISSIONS } from "@/lib/permissions";
 import { effectivePrice } from "@/lib/pricing";
+import { findPendingSale } from "@/lib/sale-flow";
 import { getOpenShift } from "@/lib/shift";
+import { toClientState } from "./client-state";
 import { OpenShiftForm } from "./open-shift-form";
 import { PosScreen } from "./pos-screen";
 
@@ -27,7 +29,7 @@ async function PosContent() {
   const shift = await getOpenShift(user.id);
   if (!shift) return <OpenShift user={user} />;
 
-  const [stocks, categories, recent, saleCount] = await Promise.all([
+  const [stocks, categories, recent, saleCount, pending] = await Promise.all([
     db.branchStock.findMany({
       where: { branchId: shift.branchId, product: { isActive: true } },
       orderBy: { product: { name: "asc" } },
@@ -45,6 +47,7 @@ async function PosContent() {
       select: { id: true, invoiceNo: true, createdAt: true, total: true, _count: { select: { items: true } } },
     }),
     db.sale.count({ where: { shiftId: shift.id, status: "COMPLETED" } }),
+    findPendingSale(user),
   ]);
 
   return (
@@ -74,6 +77,13 @@ async function PosContent() {
         total: r.total,
         itemCount: r._count.items,
       }))}
+      pending={
+        pending && {
+          state: toClientState(pending.state),
+          items: pending.items,
+          transactionDiscount: pending.transactionDiscount,
+        }
+      }
     />
   );
 }
