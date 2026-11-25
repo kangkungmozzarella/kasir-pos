@@ -59,6 +59,11 @@ export class MockProvider implements PaymentProvider {
     };
   }
 
+  async refund({ providerRef }: { providerRef: string; amount: number }) {
+    // Simulasi: tidak ada uang yang berpindah. Ref turunan membuat panggilan ulang idempoten.
+    return { refundRef: `${providerRef}-REFUND` };
+  }
+
   async verifyWebhook(req: Request) {
     const body = await req.text();
     const result = verify(this.opts.secret, {

@@ -25,6 +25,12 @@ export interface PaymentProvider {
     message?: string;
   }>;
 
+  /**
+   * Kembalikan dana pembayaran yang sudah PAID (dipakai saat transaksi di-void).
+   * Harus idempoten per providerRef: dipanggil dua kali tetap satu pengembalian.
+   */
+  refund(input: { providerRef: string; amount: number }): Promise<{ refundRef: string }>;
+
   /** Validasi webhook masuk. Melempar WebhookError bila tanda tangan tidak sah. */
   verifyWebhook(req: Request): Promise<{ providerRef: string; status: WebhookStatus }>;
 }

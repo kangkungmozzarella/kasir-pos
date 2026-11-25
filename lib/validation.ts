@@ -216,3 +216,16 @@ export function formValues(formData: FormData, keys: readonly string[]): Record<
     }),
   );
 }
+
+export const closeShiftSchema = z.object({
+  countedCash: rupiah("Uang yang dihitung"),
+  note: optionalText(200, "Catatan"),
+});
+
+export const voidSchema = z.object({
+  reason: z
+    .string({ error: "Alasan pembatalan wajib diisi." })
+    .trim()
+    .min(5, { error: "Tulis alasan pembatalan, minimal 5 karakter." })
+    .max(200, { error: "Alasan maksimal 200 karakter." }),
+});

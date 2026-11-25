@@ -85,6 +85,11 @@ async function createSale(
   now: Date,
   payments?: Prisma.PaymentCreateWithoutSaleInput[],
 ) {
+  // Kunci bersama pada shift: tutup shift (FOR UPDATE) menunggu checkout ini selesai,
+  // dan checkout tidak bisa masuk ke shift yang baru saja ditutup.
+  const [current] = await tx.$queryRaw<{ status: string }[]>`SELECT status FROM "Shift" WHERE id = ${shift.id} FOR SHARE`;
+  if (current?.status !== "OPEN") throw new UserFacingError("Shift sudah ditutup. Buka shift baru untuk bertransaksi.");
+
   const dateKey = jakartaDateKey(now);
   // Nomor urut per cabang per hari. Baris counter terkunci sampai transaksi selesai,
   // jadi dua checkout bersamaan pasti mendapat nomor berbeda.

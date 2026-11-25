@@ -9,7 +9,7 @@ import { simulatePayment } from "./actions";
 type Props = {
   providerRef: string;
   amount: number;
-  status: "PENDING" | "PAID" | "FAILED" | "EXPIRED";
+  status: "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED";
   expiresAt: string | null;
   storeName: string;
   invoiceNo: string;
@@ -43,6 +43,8 @@ export function SimulatorPanel({ providerRef, amount, status, expiresAt, storeNa
           <p className="rounded-lg bg-success/10 px-4 py-3 font-semibold text-success">
             Pembayaran berhasil. Layar kasir akan lanjut otomatis.
           </p>
+        ) : status === "REFUNDED" ? (
+          <p className="rounded-lg bg-muted px-4 py-3 font-semibold">Transaksi dibatalkan toko. Dana sudah dikembalikan.</p>
         ) : status === "FAILED" ? (
           <p className="rounded-lg bg-destructive/10 px-4 py-3 font-semibold text-destructive">Pembayaran ditolak.</p>
         ) : expired ? (

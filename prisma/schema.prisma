@@ -46,6 +46,7 @@ enum PaymentStatus {
   PAID
   FAILED
   EXPIRED
+  REFUNDED // dikembalikan ke pembeli karena transaksi di-void
 }
 
 enum StockMovementType {
@@ -199,6 +200,7 @@ model Shift {
   sales   Sale[]
 
   @@index([branchId, status])
+  @@index([cashierId, status])
 }
 
 // -------------------------------------------------------------
@@ -282,6 +284,7 @@ model Payment {
   expiresAt    DateTime?
   createdAt    DateTime      @default(now())
   paidAt       DateTime?
+  refundedAt   DateTime?
 
   sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 

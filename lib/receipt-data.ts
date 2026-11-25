@@ -15,7 +15,7 @@ export async function getReceipt(saleId: string, user: CurrentUser): Promise<Rec
       branch: { select: { name: true, address: true, phone: true, receiptFooter: true } },
       cashier: { select: { name: true } },
       items: { orderBy: { id: "asc" } },
-      payments: { where: { status: "PAID" }, orderBy: { createdAt: "asc" } },
+      payments: { where: { status: { in: ["PAID", "REFUNDED"] } }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!sale) return null;
