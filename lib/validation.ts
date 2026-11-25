@@ -178,8 +178,8 @@ const int = (label: string, max: number) =>
     .min(0, { error: `${label} tidak boleh negatif.` })
     .max(max, { error: `${label} terlalu besar.` });
 
-/** Input checkout dari layar kasir. Harga TIDAK dikirim klien; server mengambilnya sendiri. */
-export const checkoutSchema = z.object({
+/** Isi keranjang dari layar kasir. Harga TIDAK dikirim klien; server mengambilnya sendiri. */
+export const cartSchema = z.object({
   items: z
     .array(
       z.object({
@@ -196,9 +196,15 @@ export const checkoutSchema = z.object({
   transactionDiscount: int("Diskon transaksi", 1_000_000_000),
   /** Total yang dilihat kasir; ditolak bila berbeda dengan hitungan server. */
   expectedTotal: int("Total", 10_000_000_000),
+});
+
+export const checkoutSchema = cartSchema.extend({
   tendered: int("Uang diterima", 10_000_000_000),
 });
 
+export const amountSchema = int("Nominal", 10_000_000_000).min(1, { error: "Nominal minimal Rp 1." });
+
+export type CartInput = z.infer<typeof cartSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 /** Ambil nilai string dari FormData untuk dikirim ke schema (null -> undefined). */
