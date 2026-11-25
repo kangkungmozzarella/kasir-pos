@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Proyek ini
 
-- Spesifikasi lengkap dan rencana fase: `HANDOFF.md`. Kerjakan berurutan dan berhenti untuk konfirmasi di akhir tiap fase.
+- Spesifikasi lengkap dan rencana fase ada di `HANDOFF.md` (hanya lokal, sengaja tidak di-commit). Kerjakan berurutan dan berhenti untuk konfirmasi di akhir tiap fase.
 - Arah desain: `DESIGN.md`. Semua UI disaring dengan aturan antislop (tanpa em dash, kontras WCAG AA, target sentuh 44px, state kosong/memuat/error).
 - Next.js 16 dengan Cache Components: pembacaan session harus di dalam `<Suspense>`. Pola auth ada di `lib/auth.ts` (halaman pakai `requireUser`, aksi/API pakai `assertUser`).
 - Prisma 7: client di-generate ke `generated/prisma` (`pnpm prisma generate`); koneksi diatur di `prisma.config.ts`.
