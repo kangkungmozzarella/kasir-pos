@@ -58,3 +58,18 @@ export function jakartaDayStart(daysAgo = 0, now: Date = new Date()): Date {
   const utcMidnight = Date.UTC(Number(key.slice(0, 4)), Number(key.slice(4, 6)) - 1, Number(key.slice(6, 8)));
   return new Date(utcMidnight - 7 * 3_600_000 - daysAgo * 86_400_000);
 }
+
+/** Tanggal WIB untuk <input type="date">: "YYYY-MM-DD". */
+export function jakartaDateInput(date: Date): string {
+  const k = jakartaDateKey(date);
+  return `${k.slice(0, 4)}-${k.slice(4, 6)}-${k.slice(6, 8)}`;
+}
+
+/** "YYYY-MM-DD" -> pukul 00.00 WIB pada tanggal itu, atau null bila tidak valid. */
+export function parseJakartaDate(value: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const utc = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(utc - 7 * 3_600_000);
+  return jakartaDateInput(d) === value ? d : null; // tolak 2026-02-31 dan sejenisnya
+}

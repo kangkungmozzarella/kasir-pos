@@ -16,8 +16,8 @@ import { ROLE_LABEL } from "@/lib/roles";
 export function AppShell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? "flex min-h-dvh flex-col lg:h-dvh" : "flex min-h-dvh flex-col"}>
-      <div aria-hidden className="awning shrink-0" />
-      <header className="relative shrink-0 border-b">
+      <div aria-hidden className="awning shrink-0 print:hidden" />
+      <header className="relative shrink-0 border-b print:hidden">
         <div className={`mx-auto flex h-16 w-full items-center gap-3 px-4 sm:gap-6 sm:px-6 ${wide ? "" : "max-w-6xl"}`}>
           <Wordmark />
           {/* Bagian yang bergantung pada session dirender per request; sisanya ikut static shell. */}

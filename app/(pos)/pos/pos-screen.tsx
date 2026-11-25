@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClockCounterClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
@@ -274,9 +275,18 @@ export function PosScreen({
     <div className="flex flex-1 flex-col lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_26rem]">
       <section aria-label="Produk" className="flex flex-col lg:min-h-0">
         <div className="shrink-0 px-4 pt-4 pb-2 sm:px-6">
-          <p className="mb-2 text-xs text-muted-foreground">
-            {shift.branchName} · {formatNumber(shift.saleCount)} transaksi di shift ini
-          </p>
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              {shift.branchName} · {formatNumber(shift.saleCount)} transaksi di shift ini
+            </p>
+            {/* min-h-11 untuk target sentuh; margin negatif supaya baris ini tetap rendah. */}
+            <Link
+              href="/pos/tutup-shift"
+              className="-my-2.5 inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Tutup shift
+            </Link>
+          </div>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <label htmlFor="pos-search" className="sr-only">

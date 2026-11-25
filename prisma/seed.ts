@@ -265,7 +265,9 @@ async function main() {
   const counters: Prisma.InvoiceCounterCreateManyInput[] = [];
   const sold = new Map<string, number>(); // "branchId:productId" -> qty
 
-  for (let daysAgo = DAYS_OF_HISTORY; daysAgo >= 1; daysAgo--) {
+  // Hari ini ikut diisi sampai jam seed dijalankan, supaya dashboard "hari ini" tidak kosong.
+  const seededAt = new Date();
+  for (let daysAgo = DAYS_OF_HISTORY; daysAgo >= 0; daysAgo--) {
     const midnight = jakartaMidnight(daysAgo);
     const weekday = new Date(midnight.getTime() + 7 * HOUR_MS).getUTCDay(); // 0 = Minggu
     const dayFactor = weekday === 0 || weekday === 6 ? 1.5 : weekday === 5 ? 1.15 : 1;
@@ -284,7 +286,9 @@ async function main() {
       const times = Array.from({ length: count }, () => {
         const hour = pickWeighted(HOURS, (h) => HOUR_WEIGHT[h]);
         return new Date(midnight.getTime() + hour * HOUR_MS + randInt(0, HOUR_MS - 1));
-      }).sort((a, b) => a.getTime() - b.getTime());
+      })
+        .filter((t) => t < seededAt)
+        .sort((a, b) => a.getTime() - b.getTime());
 
       times.forEach((createdAt, idx) => {
         const hourWib = Math.floor((createdAt.getTime() - midnight.getTime()) / HOUR_MS);
@@ -368,12 +372,17 @@ async function main() {
         }
       });
 
-      counters.push({ branchId: branch.id, date: dateKey, lastSeq: count });
+      if (times.length > 0) counters.push({ branchId: branch.id, date: dateKey, lastSeq: times.length });
 
       for (const s of shiftDefs) {
+        const openedAt = new Date(midnight.getTime() + s.from * HOUR_MS);
+        if (openedAt >= seededAt) continue; // shift hari ini yang belum dimulai
+        const plannedClose = new Date(midnight.getTime() + s.to * HOUR_MS);
         const expectedCash = OPENING_CASH + s.cash;
         // Sebagian besar kas pas; sesekali selisih kecil.
         const diff = rand() < 0.85 ? 0 : randInt(-10, 5) * 1_000;
+        const note =
+          diff < 0 ? "Uang receh untuk kembalian kurang" : diff > 0 ? "Ada kelebihan, kemungkinan kembalian kurang diberikan" : null;
         shifts.push({
           id: s.id,
           branchId: branch.id,
@@ -382,9 +391,9 @@ async function main() {
           openingCash: OPENING_CASH,
           expectedCash,
           countedCash: expectedCash + diff,
-          note: diff !== 0 ? "Selisih kas saat tutup shift" : null,
-          openedAt: new Date(midnight.getTime() + s.from * HOUR_MS),
-          closedAt: new Date(midnight.getTime() + s.to * HOUR_MS),
+          note,
+          openedAt,
+          closedAt: plannedClose < seededAt ? plannedClose : seededAt,
         });
       }
     }

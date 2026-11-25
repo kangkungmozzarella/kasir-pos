@@ -7,7 +7,7 @@ import { useReceiptWidth } from "@/components/receipt/use-receipt-width";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { formatRupiah } from "@/lib/format";
-import { printReceipt } from "./print-receipt";
+import { printReceipt } from "@/lib/print-receipt";
 
 export type DoneSale = { saleId: string; invoiceNo: string; total: number; change: number };
 

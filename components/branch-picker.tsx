@@ -8,11 +8,14 @@ export function BranchPicker({
   value,
   action,
   keep = {},
+  allLabel,
 }: {
   branches: { id: string; name: string }[];
   value: string;
   action: string;
   keep?: Record<string, string>;
+  /** Bila diisi, tambahkan pilihan "semua cabang" (nilai kosong). */
+  allLabel?: string;
 }) {
   return (
     <form method="get" action={action} className="flex items-center gap-2">
@@ -23,6 +26,7 @@ export function BranchPicker({
         Cabang
       </label>
       <AutoSubmitSelect id="branch" name="branch" defaultValue={value} className="w-56">
+        {allLabel && <NativeSelectOption value="">{allLabel}</NativeSelectOption>}
         {branches.map((b) => (
           <NativeSelectOption key={b.id} value={b.id}>
             {b.name}

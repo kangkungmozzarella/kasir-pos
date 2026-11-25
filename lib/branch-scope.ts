@@ -19,3 +19,14 @@ export async function resolveSingleBranch(user: CurrentUser, requested: string |
   const branch = branches.find((b) => b.id === scoped) ?? (user.role === "OWNER" ? branches[0] : undefined);
   return { branch, branches };
 }
+
+/**
+ * Untuk laporan yang bisa digabung (penjualan, shift, dashboard). Pemilik: cabang yang
+ * diminta, atau null (= semua cabang). Admin: selalu cabangnya sendiri.
+ */
+export async function resolveBranchFilter(user: CurrentUser, requested: string | undefined) {
+  const { branches } = await resolveSingleBranch(user, undefined);
+  if (user.role !== "OWNER") return { branchId: user.branchId, branches };
+  const branchId = branches.find((b) => b.id === requested)?.id ?? null;
+  return { branchId, branches };
+}

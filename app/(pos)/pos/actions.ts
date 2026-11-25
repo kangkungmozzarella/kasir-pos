@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { redirect } from "next/navigation";
 import type { ActionState } from "@/lib/action-state";
 import { actionError, success, validationFailed } from "@/lib/actions";
 import { assertUser } from "@/lib/auth";
@@ -15,8 +16,8 @@ import {
   payCashRemaining,
   startQris,
 } from "@/lib/sale-flow";
-import { openShift } from "@/lib/shift";
-import { amountSchema, cartSchema, checkoutSchema, formValues, openShiftSchema } from "@/lib/validation";
+import { closeShift, openShift } from "@/lib/shift";
+import { amountSchema, cartSchema, checkoutSchema, closeShiftSchema, formValues, openShiftSchema } from "@/lib/validation";
 import { toClientState, type ClientSaleState } from "./client-state";
 import type { CheckoutResponse } from "./types";
 
@@ -32,6 +33,21 @@ export async function openShiftAction(_prev: ActionState, formData: FormData): P
   } catch (err) {
     return actionError(err, values);
   }
+}
+
+/** Tutup shift (hitung buta: kasir belum melihat angka sistem), lalu tampilkan rekapnya. */
+export async function closeShiftAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const values = formValues(formData, ["countedCash", "note"]);
+  let shiftId: string;
+  try {
+    const user = await assertUser(PERMISSIONS["pos:use"]);
+    const parsed = closeShiftSchema.safeParse(values);
+    if (!parsed.success) return validationFailed(parsed.error, values);
+    ({ shiftId } = await closeShift(user, parsed.data));
+  } catch (err) {
+    return actionError(err, values);
+  }
+  redirect(`/shifts/${shiftId}?ditutup=1`);
 }
 
 function failure(err: unknown) {

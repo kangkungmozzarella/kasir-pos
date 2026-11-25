@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { formatDateTime, formatRupiah } from "@/lib/format";
-import { printReceipt } from "./print-receipt";
+import { printReceipt } from "@/lib/print-receipt";
 import type { PosShift, RecentSale } from "./types";
 
 export function HistoryDialog({

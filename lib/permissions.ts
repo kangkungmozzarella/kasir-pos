@@ -15,6 +15,7 @@ export const PERMISSIONS = {
   "stock:manage": ["ADMIN", "OWNER"],
   "user:manage": ["ADMIN", "OWNER"],
   "sale:void": ["ADMIN", "OWNER"],
+  "report:view": ["ADMIN", "OWNER"],
   "branch:manage": ["OWNER"],
   "report:all-branches": ["OWNER"],
 } as const satisfies Record<string, readonly Role[]>;
