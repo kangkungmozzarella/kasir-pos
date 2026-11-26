@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-test("ganti kasir dengan PIN: salah memberi sisa percobaan, benar mengganti akun di perangkat ini", async ({ page }) => {
+test("ganti kasir dengan PIN: hanya akun cabang sendiri, salah memberi sisa percobaan, benar mengganti akun", async ({ page }) => {
   await loginAs(page, "kasir1.mdn02@demo.test", /\/pos$/);
   await expect(page.getByText("Kasir 1 Medan Baru", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Ganti kasir" }).click();
   const dialog = page.getByRole("dialog", { name: "Ganti kasir" });
+  // Hanya akun cabang yang sama (Medan Baru) yang bisa dipilih di perangkat ini.
+  await expect(dialog.getByRole("radio", { name: /Medan Kota/ })).toHaveCount(0);
   await dialog.getByRole("radio", { name: /Kasir 2 Medan Baru/ }).check();
   await expect(dialog.getByLabel("PIN")).toBeFocused();
   await page.keyboard.type("9999");
@@ -19,12 +21,4 @@ test("ganti kasir dengan PIN: salah memberi sisa percobaan, benar mengganti akun
   await expect(page).toHaveURL(/\/pos$/);
   await expect(page.getByText("Kasir 2 Medan Baru", { exact: true })).toBeVisible();
   await expect(page.getByText("Kasir 1 Medan Baru", { exact: true })).toHaveCount(0);
-});
-
-test("ganti kasir tidak tersedia untuk akun di cabang lain", async ({ page }) => {
-  await loginAs(page, "kasir1.mdn01@demo.test", /\/pos$/);
-  await page.getByRole("button", { name: "Ganti kasir" }).click();
-  const dialog = page.getByRole("dialog", { name: "Ganti kasir" });
-  await expect(dialog.getByRole("radio", { name: /Kasir 2 Medan Kota/ })).toBeVisible();
-  await expect(dialog.getByRole("radio", { name: /Medan Baru/ })).toHaveCount(0);
 });

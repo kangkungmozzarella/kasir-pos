@@ -18,6 +18,14 @@ test("transfer: Medan Kota mengirim, stok asal berkurang; Medan Baru menerima, s
   const tujuan = await ctx.newPage();
   await login(tujuan, "admin.mdn02@demo.test");
   await expect(tujuan).toHaveURL(/dashboard/);
+  // Test ini memindahkan 3 barang tiap kali jalan; isi stok asal dulu bila menipis.
+  if ((await originStock(page)) < 3) {
+    await page.goto("/stock?q=Bihun");
+    await page.getByRole("link", { name: PRODUCT }).click();
+    await page.locator("#in-quantity").fill("50");
+    await page.getByRole("button", { name: "Tambah stok" }).click();
+    await expect(toast(page, /^Stok bertambah 50\./)).toBeVisible();
+  }
   const asalBefore = await originStock(page);
   const tujuanBefore = await originStock(tujuan);
 

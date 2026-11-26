@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import { PrinterIcon } from "@phosphor-icons/react";
 import { ReceiptWidthToggle } from "@/components/receipt/receipt-width-toggle";
@@ -21,10 +22,11 @@ export function DoneDialog({
   returnFocus: React.RefObject<HTMLElement | null>;
 }) {
   const [width, setWidth] = useReceiptWidth();
+  const nextRef = useRef<HTMLButtonElement>(null);
 
   return (
     <Dialog open={!!sale} onOpenChange={(o) => !o && onNext()}>
-      <DialogContent className="sm:max-w-md" showCloseButton={false} finalFocus={returnFocus}>
+      <DialogContent className="sm:max-w-md" showCloseButton={false} initialFocus={nextRef} finalFocus={returnFocus}>
         {sale && (
           <>
             <div>
@@ -51,7 +53,7 @@ export function DoneDialog({
                 Lihat struk
               </Link>
             </div>
-            <Button size="lg" autoFocus onClick={onNext} className="h-14 text-base">
+            <Button ref={nextRef} size="lg" onClick={onNext} className="h-14 text-base">
               Transaksi baru
             </Button>
           </>

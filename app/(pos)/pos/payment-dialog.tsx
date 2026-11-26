@@ -29,7 +29,8 @@ type CartInput = { items: { productId: string; qty: number; discount: number }[]
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  returnFocus: React.RefObject<HTMLElement | null>;
+  /** Ke mana fokus kembali saat dialog ditutup; `false` = jangan pindahkan fokus. */
+  returnFocus: React.RefObject<HTMLElement | null> | false;
   cart: CartInput | null;
   /** Transaksi yang sudah dibuat dan menunggu pembayaran (QRIS/kartu/kombinasi). */
   sale: ClientSaleState | null;

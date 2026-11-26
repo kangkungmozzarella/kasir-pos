@@ -465,7 +465,9 @@ export function PosScreen({
           setPayOpen(o);
           if (!o) focusSearch();
         }}
-        returnFocus={searchRef}
+        // Bila pembayaran selesai, dialog "Transaksi selesai" langsung terbuka dan memegang fokus;
+        // dialog bayar yang menutup tidak boleh merebutnya kembali ke kolom cari.
+        returnFocus={done ? false : searchRef}
         cart={cartInput}
         sale={sale}
         onSale={setSale}

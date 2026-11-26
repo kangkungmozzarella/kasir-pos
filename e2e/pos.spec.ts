@@ -101,7 +101,7 @@ test("transaksi tunai lengkap: pindai, ubah jumlah, bayar, stok berkurang, struk
   await expect(receipt).toContainText("5.045");
   await page.getByRole("radio", { name: "80 mm" }).click();
   await expect(page.getByRole("radio", { name: "80 mm" })).toHaveAttribute("aria-checked", "true");
-  await page.getByRole("button", { name: "Cetak" }).click();
+  await page.getByRole("button", { name: "Cetak", exact: true }).click();
   expect(await page.evaluate(() => (window as unknown as { __printed: number }).__printed)).toBe(1);
 
   // Kasir lain tidak bisa membuka struk ini.
