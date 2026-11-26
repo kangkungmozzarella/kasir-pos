@@ -12,10 +12,11 @@ import { cn } from "@/lib/utils";
 import { AmountInput, CartLines } from "./cart-panel";
 import { DoneDialog, type DoneSale } from "./done-dialog";
 import { HistoryDialog } from "./history-dialog";
+import { SwitchCashier } from "./switch-cashier";
 import type { ClientSaleState } from "./client-state";
 import { PaymentDialog } from "./payment-dialog";
 import { ProductGrid } from "./product-grid";
-import type { PosCategory, PosProduct, PosShift, RecentSale } from "./types";
+import type { PosCategory, PosProduct, PosShift, RecentSale, SwitchCandidate } from "./types";
 
 type Notice = { tone: "ok" | "error" | "info"; text: string } | null;
 
@@ -35,6 +36,8 @@ export function PosScreen({
   shift,
   recentSales,
   pending,
+  switchCandidates,
+  cashierName,
 }: {
   products: PosProduct[];
   categories: PosCategory[];
@@ -42,6 +45,9 @@ export function PosScreen({
   recentSales: RecentSale[];
   /** Transaksi yang masih menunggu pembayaran (dilanjutkan setelah halaman dimuat ulang). */
   pending: PendingSale | null;
+  /** Akun di cabang ini yang bisa masuk dengan PIN (ganti kasir). */
+  switchCandidates: SwitchCandidate[];
+  cashierName: string;
 }) {
   const router = useRouter();
   const [cart, dispatch] = useReducer(cartReducer, pending, (p) =>
@@ -62,6 +68,7 @@ export function PosScreen({
   const [editingTxDiscount, setEditingTxDiscount] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [switchOpen, setSwitchOpen] = useState(false);
   const [done, setDone] = useState<DoneSale | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -238,7 +245,7 @@ export function PosScreen({
   // ---- Shortcut keyboard -------------------------------------------------------
   // useEffectEvent: selalu membaca state terbaru tanpa memasang ulang listener.
   const onKey = useEffectEvent((e: KeyboardEvent) => {
-    if (payOpen || done || historyOpen) return; // dialog menangani tombolnya sendiri
+    if (payOpen || done || historyOpen || switchOpen) return; // dialog menangani tombolnya sendiri
     const target = e.target as HTMLElement;
     const inSearch = target === searchRef.current;
     const typing = !inSearch && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement);
@@ -286,6 +293,20 @@ export function PosScreen({
             >
               Tutup shift
             </Link>
+            <SwitchCashier
+              candidates={switchCandidates}
+              openShiftOf={cashierName}
+              returnFocus={searchRef}
+              onOpenChange={setSwitchOpen}
+              className="-my-2.5"
+              blocked={
+                sale
+                  ? `Transaksi ${sale.invoiceNo} masih menunggu pembayaran. Selesaikan atau batalkan dulu.`
+                  : cart.lines.length > 0
+                    ? "Keranjang masih berisi. Selesaikan transaksi atau kosongkan keranjang dulu."
+                    : undefined
+              }
+            />
           </div>
           <div className="flex gap-2">
             <div className="relative flex-1">

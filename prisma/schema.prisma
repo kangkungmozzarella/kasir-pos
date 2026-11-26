@@ -96,6 +96,8 @@ model User {
   email        String   @unique
   passwordHash String
   pin          String?  // PIN singkat untuk login cepat di layar kasir (hash)
+  pinFailedCount Int       @default(0) // percobaan PIN salah berturut-turut
+  pinLockedUntil DateTime? // PIN dikunci sampai waktu ini setelah terlalu banyak salah
   role         Role     @default(CASHIER)
   branchId     String?  // null untuk OWNER (akses semua cabang)
   isActive     Boolean  @default(true)

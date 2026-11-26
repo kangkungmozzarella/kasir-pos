@@ -6,11 +6,13 @@ import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { PERMISSIONS } from "@/lib/permissions";
 import { effectivePrice } from "@/lib/pricing";
+import { switchCandidates } from "@/lib/pin";
 import { findPendingSale } from "@/lib/sale-flow";
 import { getOpenShift } from "@/lib/shift";
 import { toClientState } from "./client-state";
 import { OpenShiftForm } from "./open-shift-form";
 import { PosScreen } from "./pos-screen";
+import { SwitchCashier } from "./switch-cashier";
 
 export const metadata: Metadata = { title: "Kasir" };
 
@@ -29,7 +31,7 @@ async function PosContent() {
   const shift = await getOpenShift(user.id);
   if (!shift) return <OpenShift user={user} />;
 
-  const [stocks, categories, recent, saleCount, pending] = await Promise.all([
+  const [stocks, categories, recent, saleCount, pending, candidates] = await Promise.all([
     db.branchStock.findMany({
       where: { branchId: shift.branchId, product: { isActive: true } },
       orderBy: { product: { name: "asc" } },
@@ -48,6 +50,7 @@ async function PosContent() {
     }),
     db.sale.count({ where: { shiftId: shift.id, status: "COMPLETED" } }),
     findPendingSale(user),
+    switchCandidates(user),
   ]);
 
   return (
@@ -77,6 +80,8 @@ async function PosContent() {
         total: r.total,
         itemCount: r._count.items,
       }))}
+      switchCandidates={candidates}
+      cashierName={user.name}
       pending={
         pending && {
           state: toClientState(pending.state),
@@ -94,6 +99,7 @@ async function OpenShift({ user }: { user: CurrentUser }) {
     orderBy: { code: "asc" },
     select: { id: true, name: true },
   });
+  const candidates = await switchCandidates(user);
   const last = await db.shift.findFirst({
     where: { cashierId: user.id, status: "CLOSED" },
     orderBy: { closedAt: "desc" },
@@ -114,6 +120,12 @@ async function OpenShift({ user }: { user: CurrentUser }) {
         </p>
       ) : (
         <OpenShiftForm branches={branches} />
+      )}
+      {candidates.length > 0 && (
+        <p className="mt-6 flex items-center gap-1 text-sm text-muted-foreground">
+          Bukan {user.name}?
+          <SwitchCashier candidates={candidates} className="-ml-1" />
+        </p>
       )}
     </div>
   );

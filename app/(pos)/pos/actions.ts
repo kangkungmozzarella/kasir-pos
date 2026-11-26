@@ -8,6 +8,8 @@ import { assertUser } from "@/lib/auth";
 import { checkoutCash, createPendingSale } from "@/lib/checkout";
 import { requestOrigin } from "@/lib/origin";
 import { PERMISSIONS } from "@/lib/permissions";
+import { switchByPin } from "@/lib/pin";
+import { getSession } from "@/lib/session";
 import {
   cancelActivePayment,
   cancelPendingSale,
@@ -150,4 +152,22 @@ export async function cancelSaleAction(saleId: unknown): Promise<{ ok: true; inv
   } finally {
     refresh();
   }
+}
+
+/** Ganti kasir di perangkat ini dengan PIN. Session diganti ke akun yang dipilih. */
+export async function switchCashierAction(targetId: unknown, pin: unknown): Promise<{ ok: false; error: string }> {
+  try {
+    const user = await assertUser(PERMISSIONS["pos:use"]);
+    if (typeof targetId !== "string" || typeof pin !== "string") return { ok: false, error: "Pilih kasir dan isi PIN." };
+    const res = await switchByPin(user, targetId, pin);
+    if (!res.ok) return res;
+    const session = await getSession();
+    session.userId = res.user.id;
+    session.role = res.user.role;
+    session.branchId = res.user.branchId;
+    await session.save();
+  } catch (err) {
+    return failure(err);
+  }
+  redirect("/pos"); // di luar try: redirect() melempar sinyal navigasi
 }

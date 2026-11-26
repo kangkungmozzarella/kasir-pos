@@ -67,7 +67,12 @@ export async function updateUser(id: string, _prev: ActionState, formData: FormD
       data: {
         ...data,
         ...(password && { passwordHash: await bcrypt.hash(password, HASH_COST) }),
-        ...(clearPin ? { pin: null } : pin ? { pin: await bcrypt.hash(pin, HASH_COST) } : {}),
+        // PIN baru (atau dihapus) juga membuka kunci percobaan PIN yang salah.
+        ...(clearPin
+          ? { pin: null, pinFailedCount: 0, pinLockedUntil: null }
+          : pin
+            ? { pin: await bcrypt.hash(pin, HASH_COST), pinFailedCount: 0, pinLockedUntil: null }
+            : {}),
       },
     });
     refresh();
