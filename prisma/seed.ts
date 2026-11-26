@@ -399,6 +399,62 @@ async function main() {
     }
   }
 
+  // --- Transfer stok antar-cabang ---------------------------------------------
+  // Tiga contoh: sudah diterima, masih di jalan (bisa diterima admin Medan Kota saat demo),
+  // dan draf. Pergerakan stoknya ikut dihitung di stok awal di bawah.
+  const [mdn01, mdn02] = branches;
+  const productByName = (name: string) => products.find((p) => p.name === name)!;
+  const transferNet = new Map<string, number>(); // "branchId:productId" -> masuk - keluar
+  const transfers: { data: Prisma.StockTransferCreateInput; dateKey: string; fromBranchId: string }[] = [];
+  const at = (daysAgo: number, hour: number) => {
+    const t = new Date(jakartaMidnight(daysAgo).getTime() + hour * HOUR_MS);
+    return t < seededAt ? t : new Date(seededAt.getTime() - 60_000);
+  };
+  const transferDefs = [
+    { from: mdn01, to: mdn02, status: "RECEIVED" as const, daysAgo: 6, items: [["Beras Medium 5 kg", 10], ["Minyak Goreng Sawit 2 L", 12], ["Gula Pasir 1 kg", 15]] as const, note: "Persiapan akhir pekan Medan Baru" },
+    { from: mdn02, to: mdn01, status: "SENT" as const, daysAgo: 1, items: [["Telur Ayam Ras 10 butir", 12], ["Kopi Susu Sachet isi 10", 20]] as const, note: "Medan Kota kekurangan telur" },
+    { from: mdn01, to: mdn02, status: "DRAFT" as const, daysAgo: 0, items: [["Mi Instan Goreng", 24]] as const, note: null },
+  ];
+  for (const def of transferDefs) {
+    const createdAt = at(def.daysAgo, 8);
+    const sentAt = def.status === "DRAFT" ? null : at(def.daysAgo, 10);
+    const receivedAt = def.status === "RECEIVED" ? at(def.daysAgo, 15) : null;
+    const id = randomUUID();
+    const dateKey = jakartaDateKey(createdAt);
+    for (const [name, qty] of def.items) {
+      const p = productByName(name);
+      if (sentAt) {
+        const k = `${def.from.id}:${p.id}`;
+        transferNet.set(k, (transferNet.get(k) ?? 0) - qty);
+        movements.push({ branchId: def.from.id, productId: p.id, type: "TRANSFER_OUT", quantity: -qty, refId: id, note: `TRF-${def.from.code}-${dateKey}-01`, userId: staff.get(def.from.id)!.admin, createdAt: sentAt });
+      }
+      if (receivedAt) {
+        const k = `${def.to.id}:${p.id}`;
+        transferNet.set(k, (transferNet.get(k) ?? 0) + qty);
+        movements.push({ branchId: def.to.id, productId: p.id, type: "TRANSFER_IN", quantity: qty, refId: id, note: `TRF-${def.from.code}-${dateKey}-01`, userId: staff.get(def.to.id)!.admin, createdAt: receivedAt });
+      }
+    }
+    transfers.push({
+      dateKey,
+      fromBranchId: def.from.id,
+      data: {
+        id,
+        transferNo: `TRF-${def.from.code}-${dateKey}-01`,
+        status: def.status,
+        note: def.note,
+        createdAt,
+        sentAt,
+        receivedAt,
+        fromBranch: { connect: { id: def.from.id } },
+        toBranch: { connect: { id: def.to.id } },
+        createdBy: { connect: { id: staff.get(def.from.id)!.admin } },
+        ...(sentAt && { sentBy: { connect: { id: staff.get(def.from.id)!.admin } } }),
+        ...(receivedAt && { receivedBy: { connect: { id: staff.get(def.to.id)!.admin } } }),
+        items: { create: def.items.map(([name, quantity]) => ({ product: { connect: { id: productByName(name).id } }, quantity })) },
+      },
+    });
+  }
+
   // --- Stok per cabang --------------------------------------------------------
   // Stok akhir ditentukan dulu, lalu stok awal = stok akhir + total terjual,
   // supaya riwayat StockMovement selalu cocok dengan BranchStock.quantity.
@@ -423,11 +479,13 @@ async function main() {
         minStock,
         priceOverride: overrides.get(key) ?? null,
       });
+      const purchased = finalQty + (sold.get(key) ?? 0) - (transferNet.get(key) ?? 0);
+      if (purchased < 0) throw new Error(`Stok awal ${p.name} negatif; kurangi jumlah transfer contoh.`);
       movements.push({
         branchId: branch.id,
         productId: p.id,
         type: "PURCHASE",
-        quantity: finalQty + (sold.get(key) ?? 0),
+        quantity: purchased,
         note: "Stok awal (data contoh)",
         userId: admin,
         createdAt: new Date(initialPurchaseAt.getTime() + 8 * HOUR_MS),
@@ -446,6 +504,10 @@ async function main() {
   await chunk(payments, (data) => db.payment.createMany({ data }));
   await chunk(movements, (data) => db.stockMovement.createMany({ data }));
   await db.invoiceCounter.createMany({ data: counters });
+  for (const t of transfers) {
+    await db.stockTransfer.create({ data: t.data });
+    await db.invoiceCounter.create({ data: { branchId: t.fromBranchId, date: `TRF-${t.dateKey}`, lastSeq: 1 } });
+  }
 
   console.log(
     `${shifts.length} shift, ${sales.length} transaksi, ${saleItems.length} item, ` +

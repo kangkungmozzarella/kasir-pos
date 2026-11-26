@@ -12,6 +12,7 @@ const NAV: (NavItem & { permission: Permission })[] = [
   { href: "/products", label: "Produk", permission: "catalog:view" },
   { href: "/categories", label: "Kategori", permission: "catalog:manage" },
   { href: "/stock", label: "Stok", permission: "stock:manage" },
+  { href: "/transfers", label: "Transfer", permission: "transfer:manage" },
   { href: "/users", label: "Pengguna", permission: "user:manage" },
 ];
 

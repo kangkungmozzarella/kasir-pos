@@ -108,6 +108,8 @@ model User {
   voidedSales    Sale[]          @relation("SaleVoidedBy")
   stockMovements StockMovement[]
   transfers      StockTransfer[]
+  sentTransfers     StockTransfer[] @relation("TransferSentBy")
+  receivedTransfers StockTransfer[] @relation("TransferReceivedBy")
 
   @@index([branchId])
 }
@@ -236,7 +238,8 @@ model Sale {
   @@index([shiftId])
 }
 
-/// Penghitung nomor invoice per cabang per hari.
+/// Penghitung nomor dokumen per cabang per hari. Kolom `date` berisi "YYYYMMDD" untuk
+/// invoice penjualan, dan "TRF-YYYYMMDD" untuk nomor transfer stok.
 /// Diisi dengan INSERT ... ON CONFLICT DO UPDATE ... RETURNING di dalam transaksi checkout,
 /// sehingga dua kasir yang checkout bersamaan tidak pernah mendapat nomor yang sama.
 model InvoiceCounter {
@@ -306,12 +309,20 @@ model StockTransfer {
   note         String?
   createdAt    DateTime       @default(now())
   sentAt       DateTime?
+  sentById     String? // audit: siapa yang mengirim (stok cabang asal berkurang)
   receivedAt   DateTime?
+  receivedById String? // audit: siapa yang menerima (stok cabang tujuan bertambah)
+  cancelledAt  DateTime?
 
   fromBranch Branch              @relation("TransferFrom", fields: [fromBranchId], references: [id])
   toBranch   Branch              @relation("TransferTo", fields: [toBranchId], references: [id])
   createdBy  User                @relation(fields: [createdById], references: [id])
+  sentBy     User?               @relation("TransferSentBy", fields: [sentById], references: [id])
+  receivedBy User?               @relation("TransferReceivedBy", fields: [receivedById], references: [id])
   items      StockTransferItem[]
+
+  @@index([fromBranchId, status])
+  @@index([toBranchId, status])
 }
 
 model StockTransferItem {
@@ -322,4 +333,6 @@ model StockTransferItem {
 
   transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
   product  Product       @relation(fields: [productId], references: [id])
+
+  @@unique([transferId, productId])
 }

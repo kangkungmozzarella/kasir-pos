@@ -229,3 +229,24 @@ export const voidSchema = z.object({
     .min(5, { error: "Tulis alasan pembatalan, minimal 5 karakter." })
     .max(200, { error: "Alasan maksimal 200 karakter." }),
 });
+
+/** Transfer stok antar-cabang. Dikirim sebagai objek dari form transfer (bukan FormData). */
+export const transferSchema = z
+  .object({
+    fromBranchId: z.string().nullable(),
+    toBranchId: z.string({ error: "Pilih cabang tujuan." }).min(1, { error: "Pilih cabang tujuan." }),
+    note: z.string().trim().max(200, { error: "Catatan maksimal 200 karakter." }).transform((v) => v || null),
+    items: z
+      .array(
+        z.object({
+          productId: z.string().min(1),
+          qty: int("Jumlah", 100_000).min(1, { error: "Jumlah minimal 1." }),
+        }),
+      )
+      .min(1, { error: "Tambahkan minimal satu produk." })
+      .max(100, { error: "Maksimal 100 produk per transfer." })
+      .refine((items) => new Set(items.map((i) => i.productId)).size === items.length, {
+        error: "Produk yang sama muncul dua kali.",
+      }),
+  });
+export type TransferInput = z.infer<typeof transferSchema>;

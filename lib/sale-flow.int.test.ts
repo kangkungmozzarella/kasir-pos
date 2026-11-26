@@ -12,7 +12,7 @@ import {
   payCashRemaining,
   startQris,
 } from "./sale-flow";
-import { applyStockDelta, StockError } from "./stock";
+import { applyStockDelta, setStockCount, StockError } from "./stock";
 
 const APP = "http://localhost:3000";
 let branch: { id: string; taxRate: number };
@@ -49,7 +49,8 @@ afterAll(() => db.$disconnect());
 describe("stok", () => {
   it("20 pengurangan serentak atas stok 5: tepat 5 berhasil, stok tidak minus", async () => {
     const s = await product("SKU-0001");
-    await db.branchStock.update({ where: { id: s.id }, data: { quantity: 5 } });
+    // Lewat stok opname (tercatat), bukan update langsung, supaya audit pergerakan tetap cocok.
+    await db.$transaction((tx) => setStockCount(tx, { branchId: branch.id, productId: s.productId, counted: 5, type: "ADJUSTMENT", note: "Persiapan test" }));
     const results = await Promise.allSettled(
       Array.from({ length: 20 }, () =>
         db.$transaction((tx) => applyStockDelta(tx, { branchId: branch.id, productId: s.productId, delta: -1, type: "SALE" })),
