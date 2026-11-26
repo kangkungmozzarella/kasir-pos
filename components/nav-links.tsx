@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import type { NavItem } from "@/lib/nav";
 
 const linkBase =
-  "inline-flex h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
+  "inline-flex h-11 items-center rounded-lg px-2.5 text-sm whitespace-nowrap font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -38,7 +38,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
 
   return (
     <>
-      <nav aria-label="Navigasi utama" className="hidden items-center gap-1 lg:flex">
+      <nav aria-label="Navigasi utama" className="hidden items-center gap-0.5 lg:flex">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           return (

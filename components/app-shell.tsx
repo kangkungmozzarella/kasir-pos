@@ -18,7 +18,7 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
     <div className={wide ? "flex min-h-dvh flex-col lg:h-dvh" : "flex min-h-dvh flex-col"}>
       <div aria-hidden className="awning shrink-0 print:hidden" />
       <header className="relative shrink-0 border-b print:hidden">
-        <div className={`mx-auto flex h-16 w-full items-center gap-3 px-4 sm:gap-6 sm:px-6 ${wide ? "" : "max-w-6xl"}`}>
+        <div className={`mx-auto flex h-16 w-full items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:gap-4 ${wide ? "" : "max-w-6xl"}`}>
           <Wordmark />
           {/* Bagian yang bergantung pada session dirender per request; sisanya ikut static shell. */}
           <Suspense fallback={<div className="flex-1" />}>
@@ -37,15 +37,17 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
 async function HeaderSession() {
   const user = await requireUser();
   const place = user.branch?.name ?? "Semua cabang";
+  const items = navFor(user.role);
 
   return (
     <>
-      <div className="flex-1">
-        <NavLinks items={navFor(user.role)} />
+      <div className="min-w-0 flex-1">
+        <NavLinks items={items} />
       </div>
-      <div className="hidden text-right leading-tight lg:block">
-        <p className="text-sm font-semibold">{user.name}</p>
-        <p className="text-xs text-muted-foreground">
+      {/* Menu panjang (Pemilik: 10 item) tidak menyisakan ruang untuk nama di bawah xl. */}
+      <div className={`hidden min-w-0 text-right leading-tight whitespace-nowrap ${items.length > 6 ? "xl:block" : "lg:block"}`}>
+        <p className="truncate text-sm font-semibold">{user.name}</p>
+        <p className="truncate text-xs text-muted-foreground">
           {ROLE_LABEL[user.role]} · {place}
         </p>
       </div>
