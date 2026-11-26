@@ -4,7 +4,7 @@ import { SESSION_COOKIE, sessionOptions, type SessionData } from "@/lib/session-
 import { homePathFor } from "@/lib/roles";
 
 // Rute yang boleh dibuka tanpa login.
-const PUBLIC_PREFIXES = ["/login", "/simulator"];
+const PUBLIC_PREFIXES = ["/login", "/simulator", "/offline"];
 
 /**
  * Pemeriksaan optimis: hanya membaca cookie, tanpa database. Tujuannya mengarahkan
