@@ -31,3 +31,8 @@ test("PWA: tanpa koneksi, halaman menampilkan penjelasan offline dan banner kone
   await context.setOffline(false);
   await expect(page.getByText(/Transaksi belum bisa disimpan/)).toHaveCount(0);
 });
+
+test("reset demo terjadwal mati bila tidak diaktifkan (pengaman database sungguhan)", async ({ request }) => {
+  const res = await request.get("/api/cron/reset-demo", { headers: { authorization: "Bearer apa-saja-yang-panjang" } });
+  expect(res.status()).toBe(404);
+});

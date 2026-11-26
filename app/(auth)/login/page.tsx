@@ -14,7 +14,8 @@ export default function LoginPage() {
         <ThemeToggle />
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 md:py-16">
-        <LoginPanel />
+        {/* Dibaca saat build: demo publik di-deploy dengan DEMO_RESET_ENABLED=true. */}
+        <LoginPanel resetsNightly={process.env.DEMO_RESET_ENABLED === "true"} />
       </main>
     </div>
   );

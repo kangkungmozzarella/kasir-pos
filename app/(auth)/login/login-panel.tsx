@@ -8,7 +8,7 @@ import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/demo-accounts";
 import { ROLE_LABEL } from "@/lib/roles";
 import { login, type LoginState } from "./actions";
 
-export function LoginPanel() {
+export function LoginPanel({ resetsNightly = false }: { resetsNightly?: boolean }) {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(login, {});
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -80,6 +80,7 @@ export function LoginPanel() {
         <p className="mt-1 max-w-prose text-sm text-muted-foreground">
           Toko, produk, dan transaksi di sini fiktif. Pembayaran QRIS dan kartu hanya simulasi, tidak ada uang yang
           berpindah. Kata sandi semua akun: <code className="font-mono font-semibold text-foreground">{DEMO_PASSWORD}</code>
+          {resetsNightly && " Silakan coba apa saja: data dikembalikan seperti semula setiap hari pukul 03.00 WIB."}
         </p>
 
         <ul className="mt-5 divide-y rounded-xl border bg-card">
