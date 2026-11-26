@@ -95,7 +95,7 @@ async function StockContent({ searchParams }: { searchParams: PageProps<"/stock"
         actions={isOwner && branches.length > 1 && <BranchPicker branches={branches} value={branch.id} action="/stock" />}
       />
 
-      <form method="get" role="search" className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+      <form key={`${branch.id}:${q}:${filter}`} method="get" role="search" className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
         {isOwner && <input type="hidden" name="branch" value={branch.id} />}
         <div className="relative sm:w-72">
           <label htmlFor="q" className="sr-only">

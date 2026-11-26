@@ -92,7 +92,7 @@ async function ShiftsContent({ searchParams }: { searchParams: PageProps<"/shift
         }
       />
 
-      <form method="get" className="mb-4 flex items-center gap-2">
+      <form key={`${branchId}:${filter}`} method="get" className="mb-4 flex items-center gap-2">
         {keep.branch && <input type="hidden" name="branch" value={keep.branch} />}
         <label htmlFor="filter" className="text-sm font-medium">
           Tampilkan

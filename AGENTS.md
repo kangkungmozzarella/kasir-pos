@@ -27,4 +27,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Polling status dari klien lewat route handler `GET /api/sales/[id]/status`, bukan server action (server action diproses berurutan per klien).
 - Integration test (`pnpm test:integration`) memakai database `kasir_pos_test`. `prisma migrate reset` diblokir untuk agent AI; setup test memakai `migrate deploy` + seed dan menolak URL yang bukan database lokal berakhiran `_test`.
 - Login/ganti kasir dengan PIN digeser ke fase 6 (keputusan pemilik); butuh pembatasan percobaan karena PIN hanya 4 sampai 6 digit.
+- Tutup shift dan void ada di `lib/shift.ts` dan `lib/void.ts`. Tutup shift mengunci baris Shift (`FOR UPDATE`), `createSale` memegang `FOR SHARE` pada shift yang sama. Void: refund ke provider dulu (di luar transaksi DB), lalu catat dengan baris Sale terkunci.
+- Angka laporan (dashboard, rekap shift) dihitung dengan agregasi SQL di `lib/dashboard.ts` / `lib/shift.ts`, bukan menjumlah di JavaScript.
+- Form saringan GET yang memakai `defaultValue` diberi `key` sesuai nilai saringannya; navigasi sisi klien memakai ulang elemen sehingga `defaultValue` lama tetap tampil.
+- E2E: Next 16 menyimpan halaman sebelumnya tersembunyi di DOM (Activity). Batasi locator ke region halaman saat teks yang sama bisa ada di halaman sebelumnya.
+- Seed sengaja membuat Air Mineral 600 ml habis di MDN01 (dipakai test e2e). Test integration mengisi stok sendiri lewat `PURCHASE`, jangan bergantung pada stok acak seed.
 - Pesan commit tanpa baris `Co-Authored-By`.

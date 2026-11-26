@@ -410,8 +410,11 @@ async function main() {
     for (const p of products) {
       const key = `${branch.id}:${p.id}`;
       const minStock = p.pop >= 8 ? 24 : p.pop >= 4 ? 12 : 6;
-      const isLow = rand() < 0.12; // sengaja di bawah minimum agar peringatan stok menipis muncul
-      const finalQty = isLow ? randInt(0, minStock - 1) : randInt(minStock + 5, minStock * 5);
+      // Satu produk laris sengaja habis di Medan Kota: contoh tetap untuk tampilan stok habis
+      // (dipakai juga oleh test e2e), tidak bergantung pada angka acak.
+      const forcedEmpty = branch.code === "MDN01" && p.name === "Air Mineral 600 ml";
+      const isLow = forcedEmpty || rand() < 0.12; // sengaja di bawah minimum agar peringatan stok menipis muncul
+      const finalQty = forcedEmpty ? 0 : isLow ? randInt(0, minStock - 1) : randInt(minStock + 5, minStock * 5);
       if (isLow) lowCount++;
       stocks.push({
         branchId: branch.id,

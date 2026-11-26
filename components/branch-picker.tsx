@@ -18,7 +18,8 @@ export function BranchPicker({
   allLabel?: string;
 }) {
   return (
-    <form method="get" action={action} className="flex items-center gap-2">
+    // key: navigasi sisi klien memakai ulang elemen; defaultValue hanya dibaca saat elemen dibuat.
+    <form key={value} method="get" action={action} className="flex items-center gap-2">
       {Object.entries(keep).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}

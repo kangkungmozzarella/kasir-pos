@@ -39,6 +39,14 @@ Netral (krem, arang, abu hangat) tidak dihitung sebagai warna inti. Merah hanya 
 - Bayangan hanya untuk lapisan yang benar-benar melayang (dropdown, modal). Panel biasa cukup garis tepi.
 - Ikon: **Phosphor** dengan bobot regular. Alasan: punya ikon yang relevan dengan toko (Storefront, Barcode, Receipt, Basket), dan sudutnya yang membulat lebih hangat dibanding garis tipis default.
 
+### Grafik dan laporan
+
+- Data memakai **satu warna, navy inti**. Grafik di aplikasi ini selalu satu seri, jadi tidak perlu palet kategori. Kunyit tidak dipakai di grafik supaya tetap khusus untuk Bayar/TOTAL.
+- **Pembanding** (rata-rata 28 hari) digambar sebagai garis pendek abu-abu, bukan batang kedua: terbaca sebagai patokan, bukan data yang bersaing.
+- **Data belum lengkap** (jam atau hari yang masih berjalan) memakai navy pucat, dengan keterangan, supaya batang hari ini tidak terlihat seperti penurunan.
+- Batang maksimal 24px dengan ujung atas membulat 4px, grid garis tipis tanpa putus-putus, label sumbu ringkas ("500 rb", "1,2 jt"). Angka utama (omzet hari ini) besar dengan angka proporsional; angka tabular hanya di kolom.
+- Selisih kas ditulis sebagai teks ("Kurang Rp 4.000", "Lebih Rp 2.000", "Pas"), warna merah/hijau hanya penguat.
+
 ### Dial
 
 `Dial: ENERGY 2 / RHYTHM 1 / MOTION 1`

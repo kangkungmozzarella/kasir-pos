@@ -90,7 +90,7 @@ async function SalesContent({ searchParams }: { searchParams: PageProps<"/sales"
         }
       />
 
-      <form method="get" role="search" aria-label="Saring penjualan" className="mb-4 grid grid-cols-2 gap-3 rounded-xl border bg-card p-4 lg:grid-cols-4">
+      <form key={JSON.stringify(values)} method="get" role="search" aria-label="Saring penjualan" className="mb-4 grid grid-cols-2 gap-3 rounded-xl border bg-card p-4 lg:grid-cols-4">
         {params.branch && <input type="hidden" name="branch" value={params.branch} />}
         {values.shift && <input type="hidden" name="shift" value={values.shift} />}
         <FilterField label="Dari tanggal" htmlFor="from">

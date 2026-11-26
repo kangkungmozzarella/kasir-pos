@@ -12,7 +12,7 @@ Aplikasi kasir (point of sale) multi-cabang untuk toko kelontong dan minimarket.
 | 2. Master data | Produk, kategori, stok per cabang, pengguna | Selesai |
 | 3. Kasir + tunai + struk | Layar kasir, shift, pembayaran tunai, struk 58/80mm | Selesai |
 | 4. Pembayaran simulasi | QRIS dan kartu tiruan, webhook HMAC, split payment | Selesai |
-| 5. Shift dan laporan | Tutup shift, void, dashboard dan grafik | Belum |
+| 5. Shift dan laporan | Tutup shift, void, riwayat penjualan, dashboard dan grafik | Selesai |
 | 6. Multi-cabang dan rilis | Transfer stok, printer ESC/POS, login/ganti kasir dengan PIN, PWA, deploy | Belum |
 
 ## Stack
@@ -86,8 +86,20 @@ Kasir juga punya PIN demo (`1111` untuk kasir 1, `2222` untuk kasir 2). PIN suda
 - QRIS dan kartu (EDC) simulasi, dan kombinasinya (mis. sebagian QRIS, sisanya tunai).
 - Struk 58 mm atau 80 mm (disimpan per perangkat), dicetak lewat dialog cetak browser, jadi bisa diuji tanpa printer dengan "Simpan sebagai PDF".
 - Cetak ulang struk dari riwayat transaksi shift.
+- Tutup shift dari tautan di atas kolom cari.
 
 Arah desain dan alasan setiap pilihan visual ada di [`DESIGN.md`](DESIGN.md).
+
+## Shift, void, dan laporan
+
+- **Tutup shift dengan hitung buta.** Kasir mengisi jumlah uang di laci (langsung, atau per pecahan 100.000 sampai koin) tanpa melihat angka sistem. Kas yang diharapkan dan selisihnya baru tampil di rekap setelah shift ditutup, supaya hitungan kasir jujur. Rekap bisa dicetak untuk serah terima.
+- **Kas yang diharapkan** = modal awal + semua pembayaran tunai yang masuk di shift itu (sudah dikurangi kembalian). QRIS dan kartu masuk ke rekening, jadi tidak dihitung. Angkanya disimpan saat tutup, sehingga void sesudahnya tidak mengubah rekap; void seperti itu ditandai terpisah.
+- **Tutup shift ditolak bila masih ada transaksi menunggu pembayaran**, karena transaksi itu masih memegang stok. Baris shift dikunci saat tutup dan checkout memegang kunci bersama, jadi tidak ada transaksi yang masuk ke shift yang baru ditutup.
+- **Void** hanya untuk Admin (cabangnya sendiri) dan Pemilik, wajib alasan, dan hanya untuk transaksi di shift yang masih buka atau yang dibuat hari ini. Stok kembali lewat `VOID_RETURN`, pembayaran ditandai `REFUNDED`, dan QRIS/kartu dikembalikan lewat `PaymentProvider.refund` (idempoten). Layar memberi tahu berapa uang tunai yang harus dikembalikan ke pembeli. Transaksi yang macet setengah lunas juga bisa di-void admin.
+- **Riwayat penjualan** (`/sales`) dengan saringan tanggal, kasir, metode, status, dan nomor invoice, plus unduhan CSV dengan saringan yang sama. CSV memakai pemisah titik koma karena Excel berbahasa Indonesia memakai `;` sebagai pemisah daftar, dan teks yang bisa terbaca sebagai rumus dinetralkan.
+- **Dashboard**: omzet hari ini dibanding kemarin sampai jam yang sama, jumlah transaksi, rata-rata belanja, laba kotor (penjualan bersih sebelum pajak dikurangi modal), omzet per jam dengan garis rata-rata 28 hari sebelumnya, omzet 30 hari, produk terlaris, dan stok menipis. Pemilik bisa memilih satu cabang atau semua cabang beserta tabel perbandingan.
+- **Angka laporan dihitung di database.** Agregasi memakai SQL dengan jam WIB (`at time zone 'Asia/Jakarta'`), tanpa query per cabang atau per produk. Integration test mencocokkan angka dashboard dengan hitungan manual per transaksi.
+- **Grafik tanpa library chart.** Komponen [`ColumnChart`](components/charts/column-chart.tsx) dirender sebagai HTML biasa: tooltip lewat hover maupun panah keyboard, diumumkan ke pembaca layar, dan setiap grafik punya tampilan tabel.
 
 ## Arsitektur pembayaran
 

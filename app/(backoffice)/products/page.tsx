@@ -105,7 +105,7 @@ async function ProductsContent({ searchParams }: { searchParams: PageProps<"/pro
         }
       />
 
-      <form method="get" role="search" className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+      <form key={`${q}:${category}:${status}`} method="get" role="search" className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="relative sm:w-72">
           <label htmlFor="q" className="sr-only">
             Cari produk

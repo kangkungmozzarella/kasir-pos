@@ -276,13 +276,13 @@ export function PosScreen({
       <section aria-label="Produk" className="flex flex-col lg:min-h-0">
         <div className="shrink-0 px-4 pt-4 pb-2 sm:px-6">
           <div className="mb-1 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
+            <p className="min-w-0 truncate text-xs text-muted-foreground">
               {shift.branchName} · {formatNumber(shift.saleCount)} transaksi di shift ini
             </p>
             {/* min-h-11 untuk target sentuh; margin negatif supaya baris ini tetap rendah. */}
             <Link
               href="/pos/tutup-shift"
-              className="-my-2.5 inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="-my-2.5 inline-flex min-h-11 shrink-0 items-center rounded-md px-2 text-sm font-medium whitespace-nowrap text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               Tutup shift
             </Link>
