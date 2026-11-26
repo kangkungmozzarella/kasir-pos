@@ -47,6 +47,11 @@ Netral (krem, arang, abu hangat) tidak dihitung sebagai warna inti. Merah hanya 
 - Batang maksimal 24px dengan ujung atas membulat 4px, grid garis tipis tanpa putus-putus, label sumbu ringkas ("500 rb", "1,2 jt"). Angka utama (omzet hari ini) besar dengan angka proporsional; angka tabular hanya di kolom.
 - Selisih kas ditulis sebagai teks ("Kurang Rp 4.000", "Lebih Rp 2.000", "Pas"), warna merah/hijau hanya penguat.
 
+### Ikon aplikasi dan keadaan offline
+
+- Ikon PWA memakai motif identitas yang sama: tenda navy-krem di atas, huruf K navy di bawahnya. Huruf digambar sebagai bidang geometris (bukan font) supaya tampil sama di semua perangkat. Versi maskable memberi ruang aman 80%.
+- Banner offline memakai merah error di seluruh lebar layar: ini keadaan yang menghalangi kerja (transaksi tidak bisa disimpan), bukan sekadar info.
+
 ### Dial
 
 `Dial: ENERGY 2 / RHYTHM 1 / MOTION 1`

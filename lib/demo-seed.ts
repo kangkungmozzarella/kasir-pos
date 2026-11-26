@@ -141,6 +141,19 @@ const HOUR_WEIGHT: Record<number, number> = {
 };
 const HOURS = Object.keys(HOUR_WEIGHT).map(Number);
 const DAYS_OF_HISTORY = 30;
+const ALWAYS_STOCKED = new Set([
+  "Beras Medium 5 kg",
+  "Gula Pasir 1 kg",
+  "Minyak Goreng Sawit 2 L",
+  "Minyak Goreng Sawit 1 L",
+  "Telur Ayam Ras 10 butir",
+  "Kecap Manis 520 ml",
+  "Mi Instan Goreng",
+  "Kopi Bubuk Robusta 165 g",
+  "Garam Beryodium 250 g",
+  "Bihun Jagung 175 g",
+  "Bawang Goreng 100 g",
+]);
 const OPENING_CASH = 500_000;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -462,6 +475,10 @@ export async function seedDemo(client: PrismaClient, log: (msg: string) => void 
   const stocks: Prisma.BranchStockCreateManyInput[] = [];
   const initialPurchaseAt = jakartaMidnight(DAYS_OF_HISTORY + 1);
   let lowCount = 0;
+  // Generator acak tersendiri untuk stok: jumlah transaksi hari ini bergantung jam seed dijalankan,
+  // dan itu tidak boleh menggeser stok akhir. Hasilnya sama kapan pun seed dijalankan.
+  const stockRand = mulberry32(31337);
+  const stockInt = (min: number, max: number) => min + Math.floor(stockRand() * (max - min + 1));
   for (const branch of branches) {
     const { admin } = staff.get(branch.id)!;
     for (const p of products) {
@@ -470,8 +487,11 @@ export async function seedDemo(client: PrismaClient, log: (msg: string) => void 
       // Satu produk laris sengaja habis di Medan Kota: contoh tetap untuk tampilan stok habis
       // (dipakai juga oleh test e2e), tidak bergantung pada angka acak.
       const forcedEmpty = branch.code === "MDN01" && p.name === "Air Mineral 600 ml";
-      const isLow = forcedEmpty || rand() < 0.12; // sengaja di bawah minimum agar peringatan stok menipis muncul
-      const finalQty = forcedEmpty ? 0 : isLow ? randInt(0, minStock - 1) : randInt(minStock + 5, minStock * 5);
+      // Sembako utama selalu tersedia supaya alur demo (dan test e2e) selalu bisa dicoba.
+      const staple = ALWAYS_STOCKED.has(p.name);
+      const roll = stockRand();
+      const isLow = forcedEmpty || (!staple && roll < 0.12); // sengaja di bawah minimum agar peringatan stok menipis muncul
+      const finalQty = forcedEmpty ? 0 : isLow ? stockInt(0, minStock - 1) : stockInt(minStock + 5, minStock * 5);
       if (isLow) lowCount++;
       stocks.push({
         branchId: branch.id,

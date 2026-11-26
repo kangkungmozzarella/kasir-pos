@@ -287,26 +287,27 @@ export function PosScreen({
               {shift.branchName} · {formatNumber(shift.saleCount)} transaksi di shift ini
             </p>
             {/* min-h-11 untuk target sentuh; margin negatif supaya baris ini tetap rendah. */}
-            <Link
-              href="/pos/tutup-shift"
-              className="-my-2.5 inline-flex min-h-11 shrink-0 items-center rounded-md px-2 text-sm font-medium whitespace-nowrap text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              Tutup shift
-            </Link>
-            <SwitchCashier
-              candidates={switchCandidates}
-              openShiftOf={cashierName}
-              returnFocus={searchRef}
-              onOpenChange={setSwitchOpen}
-              className="-my-2.5"
-              blocked={
-                sale
-                  ? `Transaksi ${sale.invoiceNo} masih menunggu pembayaran. Selesaikan atau batalkan dulu.`
-                  : cart.lines.length > 0
-                    ? "Keranjang masih berisi. Selesaikan transaksi atau kosongkan keranjang dulu."
-                    : undefined
-              }
-            />
+            <div className="-my-2.5 flex shrink-0 items-center">
+              <Link
+                href="/pos/tutup-shift"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-md px-2 text-sm font-medium whitespace-nowrap text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                Tutup shift
+              </Link>
+              <SwitchCashier
+                candidates={switchCandidates}
+                openShiftOf={cashierName}
+                returnFocus={searchRef}
+                onOpenChange={setSwitchOpen}
+                blocked={
+                  sale
+                    ? `Transaksi ${sale.invoiceNo} masih menunggu pembayaran. Selesaikan atau batalkan dulu.`
+                    : cart.lines.length > 0
+                      ? "Keranjang masih berisi. Selesaikan transaksi atau kosongkan keranjang dulu."
+                      : undefined
+                }
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <div className="relative flex-1">

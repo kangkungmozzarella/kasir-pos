@@ -26,7 +26,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Pembayaran non-tunai lewat `lib/sale-flow.ts` (QRIS, kartu, pelunasan tunai, batal, webhook). Semua mutasi mengunci baris Sale (`FOR UPDATE`); panggilan ke provider dilakukan di luar transaksi database.
 - Polling status dari klien lewat route handler `GET /api/sales/[id]/status`, bukan server action (server action diproses berurutan per klien).
 - Integration test (`pnpm test:integration`) memakai database `kasir_pos_test`. `prisma migrate reset` diblokir untuk agent AI; setup test memakai `migrate deploy` + seed dan menolak URL yang bukan database lokal berakhiran `_test`.
-- Login/ganti kasir dengan PIN digeser ke fase 6 (keputusan pemilik); butuh pembatasan percobaan karena PIN hanya 4 sampai 6 digit.
+- PIN dipakai untuk ganti kasir di perangkat yang sudah login, bukan di halaman login (keputusan pemilik, fase 6). Logika di `lib/pin.ts`: 5 kali salah mengunci 5 menit, baris user dikunci `FOR UPDATE` saat memeriksa.
+- Transfer stok lewat `lib/transfer.ts` (DRAFT -> SENT -> RECEIVED). Stok asal berkurang saat dikirim, tujuan bertambah saat diterima.
+- Tidak ada antrean transaksi offline dan `experimental.useOffline` sengaja tidak dipakai: checkout tidak idempoten. Service worker (`public/sw.js`) hanya menyimpan aset statis dan `/offline`.
+- Data demo ada di `lib/demo-seed.ts` (dipakai `pnpm db:seed` dan `GET /api/cron/reset-demo`). Reset terjadwal 03.00 WIB hanya aktif dengan `DEMO_RESET_ENABLED=true` + `CRON_SECRET` (keputusan pemilik). Deploy ke Vercel + Neon ditunda (keputusan pemilik).
+- Route handler yang memeriksa env sebelum membaca request harus memanggil `await connection()`; tanpa itu Cache Components me-render-nya saat build.
+- `prisma migrate dev` menolak berjalan non-interaktif bila ada peringatan (mis. unique constraint baru). Buat SQL dengan `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`, simpan sebagai folder migrasi baru, lalu `prisma migrate deploy`.
 - Tutup shift dan void ada di `lib/shift.ts` dan `lib/void.ts`. Tutup shift mengunci baris Shift (`FOR UPDATE`), `createSale` memegang `FOR SHARE` pada shift yang sama. Void: refund ke provider dulu (di luar transaksi DB), lalu catat dengan baris Sale terkunci.
 - Angka laporan (dashboard, rekap shift) dihitung dengan agregasi SQL di `lib/dashboard.ts` / `lib/shift.ts`, bukan menjumlah di JavaScript.
 - Form saringan GET yang memakai `defaultValue` diberi `key` sesuai nilai saringannya; navigasi sisi klien memakai ulang elemen sehingga `defaultValue` lama tetap tampil.
