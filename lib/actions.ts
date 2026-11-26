@@ -15,6 +15,7 @@ const UNIQUE_FIELD_LABEL: Record<string, string> = {
   barcode: "Barcode",
   email: "Email",
   name: "Nama",
+  code: "Kode cabang",
 };
 
 export function validationFailed(error: z.ZodError, values?: ActionState["values"]): ActionState {

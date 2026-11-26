@@ -14,6 +14,7 @@ const NAV: (NavItem & { permission: Permission })[] = [
   { href: "/stock", label: "Stok", permission: "stock:manage" },
   { href: "/transfers", label: "Transfer", permission: "transfer:manage" },
   { href: "/users", label: "Pengguna", permission: "user:manage" },
+  { href: "/branches", label: "Cabang", permission: "branch:manage" },
 ];
 
 export function navFor(role: Role): NavItem[] {

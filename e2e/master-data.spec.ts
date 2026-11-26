@@ -233,3 +233,42 @@ test.describe("navigasi HP", () => {
     expect(overflow).toBe(0);
   });
 });
+
+test.describe("cabang", () => {
+  test("Pemilik menambah cabang, mengubah PPN, lalu menonaktifkannya; Admin tidak melihat menu Cabang", async ({ page, browser }) => {
+    test.slow(); // dua sesi login dan beberapa kali simpan
+    await loginAs(page, "pemilik@demo.test", /dashboard/);
+    await page.goto("/branches/new");
+    await page.getByLabel("Kode").fill("1AB");
+    await page.getByLabel("Nama cabang").fill("Cabang Uji");
+    await page.getByRole("button", { name: "Simpan cabang" }).click();
+    await expect(page.getByText("Kode 3 sampai 8 huruf/angka, diawali huruf, mis. MDN03.")).toBeVisible();
+
+    const code = `T${uid().slice(-6).toUpperCase().replace(/[^A-Z0-9]/g, "X")}`;
+    const name = `Cabang Uji ${code}`;
+    await page.getByLabel("Kode").fill(code.toLowerCase()); // disimpan sebagai huruf besar
+    await page.getByLabel("Nama cabang").fill(name);
+    await page.getByLabel("Tarif PPN (%)").fill("10");
+    await page.getByRole("button", { name: "Simpan cabang" }).click();
+    await expect(toast(page, `Cabang ${name} ditambahkan dengan stok 0 untuk semua produk.`)).toBeVisible();
+    await expect(page).toHaveURL(/\/branches$/);
+
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    // Kode tampil sebagai teks (tidak bisa diubah). Halaman daftar sebelumnya masih ada tersembunyi di DOM.
+    await expect(page.locator("p#code")).toHaveText(code);
+    await page.getByLabel("Tarif PPN (%)").fill("12");
+    await page.getByRole("checkbox", { name: /Cabang aktif/ }).click();
+    await page.getByRole("button", { name: "Simpan perubahan" }).click();
+    await expect(toast(page, "Cabang dinonaktifkan.")).toBeVisible();
+    await page.goto("/branches");
+    await expect(page.getByRole("link", { name: new RegExp(name) })).toContainText("PPN 12%");
+    await expect(page.getByRole("link", { name: new RegExp(name) })).toContainText("nonaktif");
+
+    const ctx = await browser.newContext();
+    const admin = await ctx.newPage();
+    await login(admin, "admin.mdn01@demo.test");
+    await expect(admin).toHaveURL(/dashboard/);
+    await expect(admin.getByRole("link", { name: "Cabang", exact: true })).toHaveCount(0);
+    await ctx.close();
+  });
+});

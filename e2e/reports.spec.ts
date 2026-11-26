@@ -124,7 +124,8 @@ test("pemilik: semua cabang dengan perbandingan, lalu satu cabang", async ({ pag
   await loginAs(page, "pemilik@demo.test", /dashboard/);
   await expect(page.getByRole("heading", { level: 1, name: "Semua cabang" })).toBeVisible();
   const table = page.getByRole("table", { name: "Perbandingan cabang" });
-  await expect(table.getByRole("row")).toHaveCount(3);
+  // Bukan hitung baris: test cabang berjalan paralel dan sempat membuat cabang uji aktif sebentar.
+  await expect(table.getByRole("link", { name: "Toko Contoh Medan Kota" })).toBeVisible();
   await table.getByRole("link", { name: "Toko Contoh Medan Baru" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Toko Contoh Medan Baru" })).toBeVisible();
   await expect(page.getByLabel("Cabang", { exact: true })).not.toHaveValue("");

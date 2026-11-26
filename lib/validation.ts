@@ -72,6 +72,28 @@ const checkbox = z
   .transform((v) => v === "on" || v === "true");
 
 // ---------------------------------------------------------------------------
+//  Cabang
+// ---------------------------------------------------------------------------
+
+const branchFields = {
+  name: text("Nama cabang", 80),
+  address: optionalText(200, "Alamat"),
+  phone: optionalText(30, "Telepon"),
+  taxRate: wholeNumber("Tarif PPN", { min: 0, max: 100 }),
+  receiptFooter: optionalText(120, "Catatan kaki struk"),
+  isActive: checkbox,
+};
+
+/** Kode cabang dipakai di nomor invoice, jadi hanya diisi saat membuat cabang. */
+export const branchCreateSchema = z.object({
+  ...branchFields,
+  code: text("Kode cabang", 8)
+    .transform((v) => v.toUpperCase())
+    .pipe(z.string().regex(/^[A-Z][A-Z0-9]{2,7}$/, { error: "Kode 3 sampai 8 huruf/angka, diawali huruf, mis. MDN03." })),
+});
+export const branchUpdateSchema = z.object(branchFields);
+
+// ---------------------------------------------------------------------------
 //  Katalog
 // ---------------------------------------------------------------------------
 
